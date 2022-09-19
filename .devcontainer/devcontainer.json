@@ -1,0 +1,98 @@
+// For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
+// https://github.com/microsoft/vscode-dev-containers/tree/master/containers/go
+{
+    "name": "Go",
+    "dockerFile": "Dockerfile",
+    "runArgs": [
+        // Uncomment the next line to use a non-root user. On Linux, this will prevent
+        // new files getting created as root, but you may need to update the USER_UID
+        // and USER_GID in .devcontainer/Dockerfile to match your user if not 1000.
+        // "-u", "vscode",
+        // Mount go mod cache
+        "-v",
+        "coffeeshop-gomodcache:/go/pkg",
+        // Cache vscode exentsions installs and homedir
+        "-v",
+        "coffeeshop-vscodecache:/root/.vscode-server",
+        // Mount docker socket for docker builds
+        "-v",
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "--cap-add=SYS_PTRACE",
+        "--security-opt",
+        "seccomp=unconfined"
+    ],
+    "workspaceFolder": "/app",
+    // Use 'settings' to set *default* container specific settings.json values on container create.
+    // You can edit these settings after create using File > Preferences > Settings > Remote.
+    "settings": {
+        "go.gopath": "/go",
+        // https://github.com/golang/tools/blob/master/gopls/doc/vscode.md#vscode 
+        "go.useLanguageServer": true,
+        "[go]": {
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": true,
+            },
+            // Optional: Disable snippets, as they conflict with completion ranking.
+            "editor.snippetSuggestions": "none",
+        },
+        "[go.mod]": {
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": true,
+            }
+        },
+        "[sql]": {
+            "editor.formatOnSave": true
+        },
+        // There are handly utility scripts within /scripts that we invoke via go run.
+        // These scripts (and its dependencies) should never be consumed by the actual server directly
+        // Thus they are flagged to require the "scripts" build tag.
+        // We only inform gopls and the vscode go compiler here, that it has to set this build tag if it sees such a file.
+        "go.buildTags": "scripts",
+        "gopls": {
+            // Add parameter placeholders when completing a function.
+            "usePlaceholders": true,
+            // If true, enable additional analyses with staticcheck.
+            // Warning: This will significantly increase memory usage.
+            // DISABLED, done via 
+            "staticcheck": false,
+        },
+        // https://code.visualstudio.com/docs/languages/go#_intellisense
+        "go.autocompleteUnimportedPackages": true,
+        // https://github.com/golangci/golangci-lint#editor-integration
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": [
+            "--fast",
+            "--timeout",
+            "5m"
+        ],
+        // disable test caching, race and show coverage (in sync with makefile)
+        "go.testFlags": [
+            "-cover",
+            "-race",
+            "-count=1",
+            "-v"
+        ],
+        "go.coverMode": "atomic", // atomic is required when utilizing -race
+        "go.delveConfig": {
+            "dlvLoadConfig": {
+                // increase max length of strings displayed in debugger
+                "maxStringLen": 2048
+            },
+            "apiVersion": 2
+        }
+    },
+    // Add the IDs of extensions you want installed when the container is created in the array below.
+    "extensions": [
+        "golang.go",
+        // optional:
+        "42crunch.vscode-openapi",
+        "heaths.vscode-guid",
+        "bungcip.better-toml",
+        "eamodio.gitlens",
+        "casualjim.gotemplate",
+        "yzhang.markdown-all-in-one"
+    ],
+    "postCreateCommand": "go version"
+}
