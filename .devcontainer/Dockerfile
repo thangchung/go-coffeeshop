@@ -23,7 +23,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog unzip 2>&1 \
     #
     # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed
-    && apt-get -y install git iproute2 procps lsb-release \
+    && apt-get -y install git iproute2 procps lsb-release ca-certificates libgnutls30 \
     #
     # Install gocode-gomod
     && go get -x -d github.com/stamblerre/gocode 2>&1 \
@@ -77,6 +77,9 @@ RUN apt-get update \
     && add-apt-repository "deb [arch=$(dpkg --print-architecture)] https://download.docker.com/linux/$(lsb_release -is | tr '[:upper:]' '[:lower:]') $(lsb_release -cs) stable" \
     && apt-get update \
     && apt-get install -y docker-ce-cli \
+    # Docker Compose install
+    && curl -L https://github.com/docker/compose/releases/download/v2.11.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose \
     #
     # Install pip & pre-commit
     && apt-get -y install python3-pip \

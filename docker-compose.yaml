@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  postgresql:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=P@ssw0rd
+    ports:
+      - 5432:5432
+    networks:
+      - coffeeshop-network
+
+networks:
+  coffeeshop-network:
