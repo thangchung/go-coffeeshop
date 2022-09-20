@@ -1,8 +1,8 @@
 // For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
 // https://github.com/microsoft/vscode-dev-containers/tree/master/containers/go
 {
-    "name": "Go",
-    "dockerFile": "Dockerfile",
+    "name": "go-coffeeshop Dev Environment",
+    "dockerFile": "../docker/Dockerfile-dev",
     "runArgs": [
         // Uncomment the next line to use a non-root user. On Linux, this will prevent
         // new files getting created as root, but you may need to update the USER_UID
@@ -86,12 +86,16 @@
     "extensions": [
         "golang.go",
         // optional:
+        "ms-azuretools.vscode-docker",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "mutantdino.resourcemonitor",
+        "humao.rest-client",
         "42crunch.vscode-openapi",
         "heaths.vscode-guid",
         "bungcip.better-toml",
         "eamodio.gitlens",
         "casualjim.gotemplate",
-        "yzhang.markdown-all-in-one"
+        "davidanson.vscode-markdownlint"
     ],
     "postCreateCommand": "go version"
 }

@@ -1,0 +1,10 @@
+app:
+  name: 'product-service'
+  version: '1.0.0'
+
+http:
+  port: '5002'
+
+logger:
+  log_level: 'debug'
+  rollbar_env: 'product-service'

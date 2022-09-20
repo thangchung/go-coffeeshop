@@ -12,4 +12,16 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+github.com/
+.vscode
+.vs/
+/vendor
+**/*.log
+**/.project
+**/.factorypath
+google
+
+test_report*
+
+# Go Workspaces (introduced in Go 1.18+)
+go.work
