@@ -1,22 +1,23 @@
-// For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
-// https://github.com/microsoft/vscode-dev-containers/tree/master/containers/go
 {
-    "name": "go-coffeeshop Dev Environment",
-    "dockerFile": "../docker/Dockerfile-dev",
+    "name": "go-coffeeshop-devcontainer",
+    "build": {
+        "dockerfile": "../docker/Dockerfile-dev",
+        "args": {
+            "VARIANT": "ubuntu-22.04"
+        }
+    },
     "runArgs": [
         // Uncomment the next line to use a non-root user. On Linux, this will prevent
         // new files getting created as root, but you may need to update the USER_UID
         // and USER_GID in .devcontainer/Dockerfile to match your user if not 1000.
-        // "-u", "vscode",
+        "-u",
+        "root",
         // Mount go mod cache
         "-v",
         "coffeeshop-gomodcache:/go/pkg",
         // Cache vscode exentsions installs and homedir
         "-v",
         "coffeeshop-vscodecache:/root/.vscode-server",
-        // Mount docker socket for docker builds
-        "-v",
-        "/var/run/docker.sock:/var/run/docker.sock",
         "--cap-add=SYS_PTRACE",
         "--security-opt",
         "seccomp=unconfined"
@@ -97,5 +98,13 @@
         "casualjim.gotemplate",
         "davidanson.vscode-markdownlint"
     ],
-    "postCreateCommand": "go version"
+    "postCreateCommand": "go version",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "version": "1.19"
+        },
+        "ghcr.io/devcontainers/features/docker-from-docker:1": {
+            "version": "latest"
+        }
+    }
 }
