@@ -1,26 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	"log"
 
 	"github.com/thangchung/go-coffeeshop/cmd/product/config"
-	log "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/internal/product/app"
 )
 
 func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		fmt.Printf("Config error: %s", err)
+		log.Fatalf("Config error: %s", err)
 	}
 
-	logger := log.New(cfg.Log.Level)
-
-	logger.Info("Hello %s %s\n", cfg.Name, cfg.Version)
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
+	app.Run(cfg)
 }

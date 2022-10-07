@@ -7,7 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Interface -.
 type Interface interface {
 	Debug(message string, args ...interface{})
 	Info(message string, args ...interface{})

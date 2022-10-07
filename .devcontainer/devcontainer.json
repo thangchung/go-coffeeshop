@@ -1,5 +1,5 @@
 {
-    "name": "go-coffeeshop-devcontainer",
+    "name": "go-coffeeshop",
     "build": {
         "dockerfile": "../docker/Dockerfile-dev",
         "args": {
