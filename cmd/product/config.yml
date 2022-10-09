@@ -3,7 +3,8 @@ app:
   version: '1.0.0'
 
 http:
-  port: '5002'
+  host: '0.0.0.0'
+  port: '5001'
 
 logger:
   log_level: 'debug'

@@ -1,0 +1,9 @@
+@host = http://localhost:5001
+
+###
+GET {{host}}/v1/api/item-types HTTP/1.1
+content-type: application/json
+
+###
+GET {{host}}/v1/api/items-by-types/1,2,3 HTTP/1.1
+content-type: application/json
