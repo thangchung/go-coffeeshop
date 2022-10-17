@@ -13,17 +13,18 @@ services:
       - coffeeshop-network
 
   product:
-    build: 
+    build:
       context: .
       dockerfile: ./docker/Dockerfile-product
-    container_name: product
     image: go-coffeeshop-product
     environment:
       APP_NAME: 'product-service in docker'
     ports:
-      - 8080:8080
+      - 5001:5001
     depends_on:
       - postgres
+    networks:
+      - coffeeshop-network
 
 networks:
   coffeeshop-network:

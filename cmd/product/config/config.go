@@ -22,7 +22,7 @@ type (
 
 	HTTP struct {
 		Host string `env-required:"true" yaml:"host" env:"HTTP_HOST"`
-		Port string `env-required:"true" yaml:"port" env:"HTTP_PORT"`
+		Port int    `env-required:"true" yaml:"port" env:"HTTP_PORT"`
 	}
 
 	Log struct {

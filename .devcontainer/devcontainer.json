@@ -31,15 +31,15 @@
         "[go]": {
             "editor.formatOnSave": true,
             "editor.codeActionsOnSave": {
-                "source.organizeImports": true,
+                "source.organizeImports": true
             },
             // Optional: Disable snippets, as they conflict with completion ranking.
-            "editor.snippetSuggestions": "none",
+            "editor.snippetSuggestions": "none"
         },
         "[go.mod]": {
             "editor.formatOnSave": true,
             "editor.codeActionsOnSave": {
-                "source.organizeImports": true,
+                "source.organizeImports": true
             }
         },
         "[sql]": {
@@ -56,7 +56,7 @@
             // If true, enable additional analyses with staticcheck.
             // Warning: This will significantly increase memory usage.
             // DISABLED, done via 
-            "staticcheck": false,
+            "staticcheck": false
         },
         // https://code.visualstudio.com/docs/languages/go#_intellisense
         "go.autocompleteUnimportedPackages": true,

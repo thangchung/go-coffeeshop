@@ -1,4 +1,4 @@
-@host = http://localhost:5001
+@host = http://172.17.0.1:5001
 
 ###
 GET {{host}}/v1/api/item-types HTTP/1.1
