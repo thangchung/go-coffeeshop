@@ -1,0 +1,42 @@
+syntax="proto3";
+
+package productapi;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/thangchung/go-coffeeshop/proto;productapi";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    version: "1.0";
+  };
+  external_docs: {
+    url: "https://github.com/thangchung/go-coffeeshop";
+    description: "go-coffeeshop repository";
+  }
+  schemes: HTTPS;
+};
+
+service ProductService {
+  rpc GetItemTypes(GetItemTypesRequest) returns (GetItemTypesResponse) {
+    option (google.api.http) = {
+      get: "/v1/api/item-types"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List item types"
+      description: "List all item types on the server."
+      tags: "ItemTypes"
+    };
+  }
+}
+
+message GetItemTypesRequest {}
+message GetItemTypesResponse {
+  repeated ItemType item_types = 1;
+}
+
+message ItemType {
+  string name = 1;
+  int32 type = 2;
+}

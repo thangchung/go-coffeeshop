@@ -8,10 +8,10 @@ lint:
     - DEFAULT
   ignore_only:
     PACKAGE_DIRECTORY_MATCH:
-      - example.proto
+      - product.proto
     PACKAGE_VERSION_SUFFIX:
-      - example.proto
+      - product.proto
     RPC_REQUEST_RESPONSE_UNIQUE:
-      - example.proto
+      - product.proto
     RPC_RESPONSE_STANDARD_NAME:
-      - example.proto
+      - product.proto

@@ -1,0 +1,15 @@
+app:
+  name: 'reverse-proxy'
+  version: '1.0.0'
+
+http:
+  host: '0.0.0.0'
+  port: 5000
+
+grpc:
+  product_host: '0.0.0.0'
+  product_port: 5001
+
+logger:
+  log_level: 'debug'
+  rollbar_env: 'reverse-proxy'

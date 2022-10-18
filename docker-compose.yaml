@@ -11,6 +11,22 @@ services:
       - 5432:5432
     networks:
       - coffeeshop-network
+  
+  proxy:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-proxy
+    image: go-coffeeshop-proxy
+    environment:
+      APP_NAME: 'proxy-service in docker'
+      GRPC_PRODUCT_HOST: 'product'
+      GRPC_PRODUCT_PORT: 5001
+    ports:
+      - 5000:5000
+    depends_on:
+      - postgres
+    networks:
+      - coffeeshop-network
 
   product:
     build:
