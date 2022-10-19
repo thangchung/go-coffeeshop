@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"os"
 
 	"github.com/golang/glog"
 	"github.com/thangchung/go-coffeeshop/cmd/product/config"
@@ -13,13 +13,14 @@ import (
 func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		log.Fatal(err)
+		glog.Fatal(err)
 	}
 
 	mylog := mylogger.New(cfg.Level)
 
-	ctx := context.Background()
-	if err = app.Run(ctx, cfg, mylog); err != nil {
+	a := app.New(mylog, cfg)
+	if err = a.Run(context.Background()); err != nil {
 		glog.Fatal(err)
+		os.Exit(1)
 	}
 }

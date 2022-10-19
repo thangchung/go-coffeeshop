@@ -4,25 +4,26 @@ import (
 	"context"
 	"net"
 
-	"github.com/golang/glog"
 	"github.com/thangchung/go-coffeeshop/cmd/product/config"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto"
 	"google.golang.org/grpc"
 )
 
-var (
+type App struct {
 	logger  *mylogger.Logger
-	network = "tcp"
-	address = "0.0.0.0:5001"
-)
+	cfg     *config.Config
+	network string
+	address string
+}
 
 type ProductServiceServerImpl struct {
 	gen.UnimplementedProductServiceServer
+	logger *mylogger.Logger
 }
 
 func (g *ProductServiceServerImpl) GetItemTypes(ctx context.Context, request *gen.GetItemTypesRequest) (*gen.GetItemTypesResponse, error) {
-	logger.Info("%s", "GET: GetItemTypes")
+	g.logger.Info("GET: GetItemTypes")
 
 	itemTypes := []gen.ItemType{
 		{
@@ -79,9 +80,17 @@ func (g *ProductServiceServerImpl) GetItemTypes(ctx context.Context, request *ge
 	return &res, nil
 }
 
-func Run(ctx context.Context, cfg *config.Config, log *mylogger.Logger) error {
-	logger = log
-	logger.Info("Init %s %s\n", cfg.Name, cfg.Version)
+func New(log *mylogger.Logger, cfg *config.Config) *App {
+	return &App{
+		logger:  log,
+		cfg:     cfg,
+		network: "tcp",
+		address: "0.0.0.0:5001",
+	}
+}
+
+func (a *App) Run(ctx context.Context) error {
+	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
 
 	// Repository
 	// ...
@@ -90,24 +99,26 @@ func Run(ctx context.Context, cfg *config.Config, log *mylogger.Logger) error {
 	// ...
 
 	// gRPC Server
-	l, err := net.Listen(network, address)
+	l, err := net.Listen(a.network, a.address)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		if err := l.Close(); err != nil {
-			glog.Errorf("Failed to close %s %s: %v", network, address, err)
+			a.logger.Error("Failed to close %s %s: %v", a.network, a.address, err)
 		}
 	}()
 
 	s := grpc.NewServer()
-	gen.RegisterProductServiceServer(s, &ProductServiceServerImpl{})
+	gen.RegisterProductServiceServer(s, &ProductServiceServerImpl{logger: a.logger})
 
 	go func() {
 		defer s.GracefulStop()
 		<-ctx.Done()
 	}()
+
+	a.logger.Info("Start server at " + a.address + " ...")
 
 	return s.Serve(l)
 }
