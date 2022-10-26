@@ -9,6 +9,8 @@ http:
 grpc:
   product_host: '0.0.0.0'
   product_port: 5001
+  counter_host: '0.0.0.0'
+  counter_port: 5002
 
 logger:
   log_level: 'debug'

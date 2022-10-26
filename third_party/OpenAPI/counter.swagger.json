@@ -1,0 +1,256 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "counter.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "CounterService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/api/orders": {
+      "post": {
+        "summary": "Place an order",
+        "description": "Place an order on the server.",
+        "operationId": "CounterService_PlaceOrder",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/counterapiPlaceOrderResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/googlerpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/counterapiPlaceOrderRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/v1/fulfillment-orders": {
+      "get": {
+        "summary": "List order fulfillment",
+        "description": "List order fulfillment on the server.",
+        "operationId": "CounterService_GetListOrderFulfillment",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/counterapiGetListOrderFulfillmentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/googlerpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Orders"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "commonCommandType": {
+      "type": "string",
+      "enum": [
+        "PLACE_ORDER"
+      ],
+      "default": "PLACE_ORDER"
+    },
+    "commonItemType": {
+      "type": "string",
+      "enum": [
+        "CAPPUCCINO",
+        "COFFEE_BLACK",
+        "COFFEE_WITH_ROOM",
+        "ESPRESSO",
+        "ESPRESSO_DOUBLE",
+        "LATTE",
+        "CAKEPOP",
+        "CROISSANT",
+        "MUFFIN",
+        "CROISSANT_CHOCOLATE"
+      ],
+      "default": "CAPPUCCINO",
+      "title": "- CAPPUCCINO: Beverages\n - CAKEPOP: Food"
+    },
+    "commonOrderSource": {
+      "type": "string",
+      "enum": [
+        "COUNTER",
+        "WEB"
+      ],
+      "default": "COUNTER"
+    },
+    "counterapiCommandItem": {
+      "type": "object",
+      "properties": {
+        "itemType": {
+          "$ref": "#/definitions/commonItemType"
+        }
+      }
+    },
+    "counterapiGetListOrderFulfillmentResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/counterapiOrderDto"
+          }
+        }
+      }
+    },
+    "counterapiLineItemDto": {
+      "type": "object",
+      "properties": {
+        "itemType": {
+          "$ref": "#/definitions/commonItemType"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "itemStatus": {
+          "$ref": "#/definitions/protocommonStatus"
+        },
+        "isBaristaOrder": {
+          "type": "boolean"
+        }
+      }
+    },
+    "counterapiOrderDto": {
+      "type": "object",
+      "properties": {
+        "orderSource": {
+          "$ref": "#/definitions/commonOrderSource"
+        },
+        "loyaltyMemberId": {
+          "type": "string"
+        },
+        "orderStatus": {
+          "$ref": "#/definitions/protocommonStatus"
+        },
+        "localtion": {
+          "$ref": "#/definitions/protocommonLocation"
+        },
+        "lineItems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/counterapiLineItemDto"
+          }
+        }
+      }
+    },
+    "counterapiPlaceOrderRequest": {
+      "type": "object",
+      "properties": {
+        "commandType": {
+          "$ref": "#/definitions/commonCommandType"
+        },
+        "orderSource": {
+          "$ref": "#/definitions/commonOrderSource"
+        },
+        "location": {
+          "$ref": "#/definitions/protocommonLocation"
+        },
+        "loyaltyMemberId": {
+          "type": "string"
+        },
+        "baristaItems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/counterapiCommandItem"
+          }
+        },
+        "kitchenItems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/counterapiCommandItem"
+          }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "counterapiPlaceOrderResponse": {
+      "type": "object"
+    },
+    "googlerpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "protocommonLocation": {
+      "type": "string",
+      "enum": [
+        "ATLANTA",
+        "CHARLOTTE",
+        "RALEIGH"
+      ],
+      "default": "ATLANTA"
+    },
+    "protocommonStatus": {
+      "type": "string",
+      "enum": [
+        "PLACED",
+        "IN_PROGRESS",
+        "FULFILLED"
+      ],
+      "default": "PLACED"
+    }
+  }
+}

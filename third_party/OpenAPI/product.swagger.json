@@ -2,15 +2,12 @@
   "swagger": "2.0",
   "info": {
     "title": "product.proto",
-    "version": "1.0"
+    "version": "version not set"
   },
   "tags": [
     {
       "name": "ProductService"
     }
-  ],
-  "schemes": [
-    "https"
   ],
   "consumes": [
     "application/json"
@@ -34,7 +31,7 @@
           "default": {
             "description": "An unexpected error response.",
             "schema": {
-              "$ref": "#/definitions/rpcStatus"
+              "$ref": "#/definitions/googlerpcStatus"
             }
           }
         },
@@ -45,18 +42,36 @@
     }
   },
   "definitions": {
+    "googlerpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
     "productapiGetItemTypesResponse": {
       "type": "object",
       "properties": {
         "itemTypes": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/productapiItemType"
+            "$ref": "#/definitions/productapiItemTypeDto"
           }
         }
       }
     },
-    "productapiItemType": {
+    "productapiItemTypeDto": {
       "type": "object",
       "properties": {
         "name": {
@@ -76,28 +91,6 @@
         }
       },
       "additionalProperties": {}
-    },
-    "rpcStatus": {
-      "type": "object",
-      "properties": {
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        },
-        "details": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/protobufAny"
-          }
-        }
-      }
     }
-  },
-  "externalDocs": {
-    "description": "go-coffeeshop repository",
-    "url": "https://github.com/thangchung/go-coffeeshop"
   }
 }

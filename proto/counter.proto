@@ -1,0 +1,70 @@
+syntax="proto3";
+
+package go.coffeeshop.proto.counterapi;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+option go_package = "github.com/thangchung/go-coffeeshop/proto/gen";
+
+service CounterService {
+    rpc GetListOrderFulfillment(GetListOrderFulfillmentRequest) returns (GetListOrderFulfillmentResponse) {
+        option (google.api.http) = {
+            get: "/v1/fulfillment-orders"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "List order fulfillment"
+            description: "List order fulfillment on the server."
+            tags: "Orders"
+        };
+    }
+    rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse) {
+        option (google.api.http) = {
+            post: "/v1/api/orders"
+            body: "*"
+        };
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Place an order"
+            description: "Place an order on the server."
+            tags: "Orders"
+        };
+    }
+}
+
+message GetListOrderFulfillmentRequest {}
+message GetListOrderFulfillmentResponse {
+  repeated OrderDto orders = 1;
+}
+
+message OrderDto {
+    common.OrderSource order_source = 1;
+    string loyalty_member_id = 2;
+    common.Status order_status = 3;
+    common.Location localtion = 4;
+    repeated LineItemDto line_items = 5;
+}
+
+message LineItemDto {
+    common.ItemType item_type = 1;
+    string name = 2;
+    double price = 3;
+    common.Status item_status = 4;
+    bool is_barista_order = 5;
+}
+
+message PlaceOrderRequest {
+    common.CommandType command_type = 1;
+    common.OrderSource order_source = 2;
+    common.Location location = 3;
+    string loyalty_member_id = 4;
+    repeated CommandItem barista_items = 5;
+    repeated CommandItem kitchen_items = 6;
+    google.protobuf.Timestamp timestamp = 7;
+}
+message PlaceOrderResponse {}
+
+message CommandItem {
+    common.ItemType item_type = 1;
+}

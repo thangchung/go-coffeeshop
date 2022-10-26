@@ -8,10 +8,18 @@ lint:
     - DEFAULT
   ignore_only:
     PACKAGE_DIRECTORY_MATCH:
+      - common.proto
       - product.proto
+      - counter.proto
     PACKAGE_VERSION_SUFFIX:
+      - common.proto
       - product.proto
+      - counter.proto
     RPC_REQUEST_RESPONSE_UNIQUE:
+      - common.proto
       - product.proto
+      - counter.proto
     RPC_RESPONSE_STANDARD_NAME:
+      - common.proto
       - product.proto
+      - counter.proto

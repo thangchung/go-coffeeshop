@@ -1,0 +1,11 @@
+app:
+  name: 'counter-service'
+  version: '1.0.0'
+
+http:
+  host: '0.0.0.0'
+  port: 5002
+
+logger:
+  log_level: 'debug'
+  rollbar_env: 'counter-service'

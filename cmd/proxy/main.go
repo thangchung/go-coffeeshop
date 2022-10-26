@@ -12,18 +12,26 @@ import (
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/thangchung/go-coffeeshop/cmd/proxy/config"
 	mylog "github.com/thangchung/go-coffeeshop/pkg/logger"
-	gen "github.com/thangchung/go-coffeeshop/proto"
+	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func newGateway(ctx context.Context, conn *grpc.ClientConn, opts []gwruntime.ServeMuxOption) (http.Handler, error) {
+func newGateway(ctx context.Context, productConn *grpc.ClientConn, counterConn *grpc.ClientConn, opts []gwruntime.ServeMuxOption) (http.Handler, error) {
 	mux := gwruntime.NewServeMux(opts...)
 
 	for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
 		gen.RegisterProductServiceHandler,
 	} {
-		if err := f(ctx, mux, conn); err != nil {
+		if err := f(ctx, mux, productConn); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
+		gen.RegisterCounterServiceHandler,
+	} {
+		if err := f(ctx, mux, counterConn); err != nil {
 			return nil, err
 		}
 	}
@@ -99,7 +107,7 @@ func main() {
 	logger := mylog.New(cfg.Log.Level)
 	logger.Info("Init %s %s\n", cfg.Name, cfg.Version)
 
-	conn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
+	productConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
 	if err != nil {
 		logger.Fatal("%s", err)
 	}
@@ -107,14 +115,27 @@ func main() {
 	go func() {
 		<-ctx.Done()
 
-		if err = conn.Close(); err != nil {
-			glog.Errorf("Failed to close a client connection to the gRPC server: %v", err)
+		if err = productConn.Close(); err != nil {
+			glog.Errorf("Failed to close a product client connection to the gRPC server: %v", err)
+		}
+	}()
+
+	counterConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort))
+	if err != nil {
+		logger.Fatal("%s", err)
+	}
+
+	go func() {
+		<-ctx.Done()
+
+		if err = counterConn.Close(); err != nil {
+			glog.Errorf("Failed to close a counter client connection to the gRPC server: %v", err)
 		}
 	}()
 
 	mux := http.NewServeMux()
 
-	gw, err := newGateway(ctx, conn, nil)
+	gw, err := newGateway(ctx, productConn, counterConn, nil)
 	if err != nil {
 		logger.Fatal("%s", err)
 	}

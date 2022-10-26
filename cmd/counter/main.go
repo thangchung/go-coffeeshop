@@ -7,8 +7,8 @@ import (
 	"reflect"
 
 	"github.com/golang/glog"
-	"github.com/thangchung/go-coffeeshop/cmd/product/config"
-	"github.com/thangchung/go-coffeeshop/internal/product/app"
+	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
+	"github.com/thangchung/go-coffeeshop/internal/counter/app"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 )
 

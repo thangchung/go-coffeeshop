@@ -2,6 +2,16 @@
 
 The coffeeshop with golang stack
 
+## Services
+
+No. | Service | URI
+--- | --- | ---
+1 | grpc-gateway | [http://localhost:5000](http://localhost:5000)
+2 | product service | [http://localhost:5001](http://localhost:5001)
+3 | counter service | [http://localhost:5002](http://localhost:5002)
+4 | barista service | [http://localhost:5003](http://localhost:5003)
+5 | kitchen service | [http://localhost:5004](http://localhost:5004)
+
 ## Package
 
 ```go

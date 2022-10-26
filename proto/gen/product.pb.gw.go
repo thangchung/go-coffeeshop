@@ -2,11 +2,11 @@
 // source: product.proto
 
 /*
-Package productapi is a reverse proxy.
+Package gen is a reverse proxy.
 
 It translates gRPC into RESTful JSON APIs.
 */
-package productapi
+package gen
 
 import (
 	"context"
@@ -61,7 +61,7 @@ func RegisterProductServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/productapi.ProductService/GetItemTypes", runtime.WithHTTPPathPattern("/v1/api/item-types"))
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/go.coffeeshop.proto.productapi.ProductService/GetItemTypes", runtime.WithHTTPPathPattern("/v1/api/item-types"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -123,7 +123,7 @@ func RegisterProductServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/productapi.ProductService/GetItemTypes", runtime.WithHTTPPathPattern("/v1/api/item-types"))
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/go.coffeeshop.proto.productapi.ProductService/GetItemTypes", runtime.WithHTTPPathPattern("/v1/api/item-types"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return

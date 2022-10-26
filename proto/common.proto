@@ -1,0 +1,55 @@
+syntax="proto3";
+
+package go.coffeeshop.proto.common;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/thangchung/go-coffeeshop/proto/gen";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+    info: {
+        version: "1.0";
+    };
+    external_docs: {
+        url: "https://github.com/thangchung/go-coffeeshop";
+        description: "go-coffeeshop repository";
+    }
+    schemes: HTTPS;
+};
+
+enum OrderSource {
+    COUNTER = 0;
+    WEB = 1;
+}
+
+enum Status {
+    PLACED = 0;
+    IN_PROGRESS = 1;
+    FULFILLED = 2;
+}
+
+enum Location {
+    ATLANTA = 0;
+    CHARLOTTE = 1;
+    RALEIGH = 2;
+}
+
+enum ItemType {
+    // Beverages
+    CAPPUCCINO = 0;
+    COFFEE_BLACK = 1;
+    COFFEE_WITH_ROOM = 2;
+    ESPRESSO = 3;
+    ESPRESSO_DOUBLE = 4;
+    LATTE = 5;
+    // Food
+    CAKEPOP = 6;
+    CROISSANT = 7;
+    MUFFIN = 8;
+    CROISSANT_CHOCOLATE = 9;
+}
+
+enum CommandType {
+    PLACE_ORDER = 0;
+}

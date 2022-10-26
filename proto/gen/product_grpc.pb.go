@@ -4,7 +4,7 @@
 // - protoc             (unknown)
 // source: product.proto
 
-package productapi
+package gen
 
 import (
 	context "context"
@@ -35,7 +35,7 @@ func NewProductServiceClient(cc grpc.ClientConnInterface) ProductServiceClient {
 
 func (c *productServiceClient) GetItemTypes(ctx context.Context, in *GetItemTypesRequest, opts ...grpc.CallOption) (*GetItemTypesResponse, error) {
 	out := new(GetItemTypesResponse)
-	err := c.cc.Invoke(ctx, "/productapi.ProductService/GetItemTypes", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/go.coffeeshop.proto.productapi.ProductService/GetItemTypes", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func _ProductService_GetItemTypes_Handler(srv interface{}, ctx context.Context, 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/productapi.ProductService/GetItemTypes",
+		FullMethod: "/go.coffeeshop.proto.productapi.ProductService/GetItemTypes",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProductServiceServer).GetItemTypes(ctx, req.(*GetItemTypesRequest))
@@ -90,7 +90,7 @@ func _ProductService_GetItemTypes_Handler(srv interface{}, ctx context.Context, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ProductService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "productapi.ProductService",
+	ServiceName: "go.coffeeshop.proto.productapi.ProductService",
 	HandlerType: (*ProductServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

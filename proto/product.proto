@@ -1,22 +1,12 @@
 syntax="proto3";
 
-package productapi;
+package go.coffeeshop.proto.productapi;
 
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
 
-option go_package = "github.com/thangchung/go-coffeeshop/proto;productapi";
-
-option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
-  info: {
-    version: "1.0";
-  };
-  external_docs: {
-    url: "https://github.com/thangchung/go-coffeeshop";
-    description: "go-coffeeshop repository";
-  }
-  schemes: HTTPS;
-};
+option go_package = "github.com/thangchung/go-coffeeshop/proto/gen";
 
 service ProductService {
   rpc GetItemTypes(GetItemTypesRequest) returns (GetItemTypesResponse) {
@@ -33,10 +23,10 @@ service ProductService {
 
 message GetItemTypesRequest {}
 message GetItemTypesResponse {
-  repeated ItemType item_types = 1;
+  repeated ItemTypeDto item_types = 1;
 }
 
-message ItemType {
+message ItemTypeDto {
   string name = 1;
   int32 type = 2;
 }
