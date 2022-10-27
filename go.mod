@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/golang/glog v1.0.0
+	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0
 	github.com/ilyakaznacheev/cleanenv v1.3.0
 	github.com/rabbitmq/amqp091-go v1.5.0

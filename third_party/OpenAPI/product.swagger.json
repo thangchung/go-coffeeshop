@@ -39,6 +39,38 @@
           "ItemTypes"
         ]
       }
+    },
+    "/v1/api/items-by-types/{itemTypes}": {
+      "get": {
+        "summary": "List items by type",
+        "description": "List items by type on the server.",
+        "operationId": "ProductService_GetItemsByType",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/productapiGetItemsByTypeResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/googlerpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "itemTypes",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ItemTypes"
+        ]
+      }
     }
   },
   "definitions": {
@@ -71,6 +103,30 @@
         }
       }
     },
+    "productapiGetItemsByTypeResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/productapiItemDto"
+          }
+        }
+      }
+    },
+    "productapiItemDto": {
+      "type": "object",
+      "properties": {
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "productapiItemTypeDto": {
       "type": "object",
       "properties": {
@@ -80,6 +136,10 @@
         "type": {
           "type": "integer",
           "format": "int32"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

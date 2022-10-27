@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
+	"github.com/thangchung/go-coffeeshop/internal/counter/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
@@ -84,6 +87,43 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, 
 
 func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.PlaceOrderRequest) (*gen.PlaceOrderResponse, error) {
 	g.logger.Info("POST: PlaceOrder")
+
+	fmt.Println(request)
+
+	ch, err := g.rabbitConn.Channel()
+	if err != nil {
+		panic(err)
+	}
+	defer ch.Close()
+
+	eventBytes, err := json.Marshal(event.BaristaOrdered{
+		OrderID:    uuid.New(),
+		ItemLineID: uuid.UUID,
+	})
+	if err != nil {
+		g.logger.LogError(err)
+	}
+
+	err = ch.PublishWithContext(
+		ctx,
+		OrderTopic,
+		"log.INFO",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Type:        "barista.ordered",
+			Body:        eventBytes,
+		},
+	)
+
+	if err != nil {
+		g.logger.LogError(err)
+
+		return nil, err
+	}
+
+	g.logger.Info("Sending message: %s -> %s", event, "orders_topic")
 
 	res := gen.PlaceOrderResponse{}
 

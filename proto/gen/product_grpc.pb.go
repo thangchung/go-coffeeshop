@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ProductServiceClient interface {
 	GetItemTypes(ctx context.Context, in *GetItemTypesRequest, opts ...grpc.CallOption) (*GetItemTypesResponse, error)
+	GetItemsByType(ctx context.Context, in *GetItemsByTypeRequest, opts ...grpc.CallOption) (*GetItemsByTypeResponse, error)
 }
 
 type productServiceClient struct {
@@ -42,11 +43,21 @@ func (c *productServiceClient) GetItemTypes(ctx context.Context, in *GetItemType
 	return out, nil
 }
 
+func (c *productServiceClient) GetItemsByType(ctx context.Context, in *GetItemsByTypeRequest, opts ...grpc.CallOption) (*GetItemsByTypeResponse, error) {
+	out := new(GetItemsByTypeResponse)
+	err := c.cc.Invoke(ctx, "/go.coffeeshop.proto.productapi.ProductService/GetItemsByType", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProductServiceServer is the server API for ProductService service.
 // All implementations should embed UnimplementedProductServiceServer
 // for forward compatibility
 type ProductServiceServer interface {
 	GetItemTypes(context.Context, *GetItemTypesRequest) (*GetItemTypesResponse, error)
+	GetItemsByType(context.Context, *GetItemsByTypeRequest) (*GetItemsByTypeResponse, error)
 }
 
 // UnimplementedProductServiceServer should be embedded to have forward compatible implementations.
@@ -55,6 +66,9 @@ type UnimplementedProductServiceServer struct {
 
 func (UnimplementedProductServiceServer) GetItemTypes(context.Context, *GetItemTypesRequest) (*GetItemTypesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetItemTypes not implemented")
+}
+func (UnimplementedProductServiceServer) GetItemsByType(context.Context, *GetItemsByTypeRequest) (*GetItemsByTypeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetItemsByType not implemented")
 }
 
 // UnsafeProductServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -86,6 +100,24 @@ func _ProductService_GetItemTypes_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProductService_GetItemsByType_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetItemsByTypeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProductServiceServer).GetItemsByType(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/go.coffeeshop.proto.productapi.ProductService/GetItemsByType",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProductServiceServer).GetItemsByType(ctx, req.(*GetItemsByTypeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProductService_ServiceDesc is the grpc.ServiceDesc for ProductService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -96,6 +128,10 @@ var ProductService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetItemTypes",
 			Handler:    _ProductService_GetItemTypes_Handler,
+		},
+		{
+			MethodName: "GetItemsByType",
+			Handler:    _ProductService_GetItemsByType_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

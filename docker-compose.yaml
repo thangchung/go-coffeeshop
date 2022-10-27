@@ -23,66 +23,66 @@ services:
     networks:
       - coffeeshop-network
   
-  proxy:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile-proxy
-    image: go-coffeeshop-proxy
-    environment:
-      APP_NAME: 'proxy-service in docker'
-      GRPC_PRODUCT_HOST: 'product'
-      GRPC_PRODUCT_PORT: 5001
-      GRPC_COUNTER_HOST: 'counter'
-      GRPC_COUNTER_PORT: 5002
-    ports:
-      - 5000:5000
-    depends_on:
-      - product
-      - counter
-    networks:
-      - coffeeshop-network
+  # proxy:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile-proxy
+  #   image: go-coffeeshop-proxy
+  #   environment:
+  #     APP_NAME: 'proxy-service in docker'
+  #     GRPC_PRODUCT_HOST: 'product'
+  #     GRPC_PRODUCT_PORT: 5001
+  #     GRPC_COUNTER_HOST: 'counter'
+  #     GRPC_COUNTER_PORT: 5002
+  #   ports:
+  #     - 5000:5000
+  #   depends_on:
+  #     - product
+  #     - counter
+  #   networks:
+  #     - coffeeshop-network
 
-  product:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile-product
-    image: go-coffeeshop-product
-    environment:
-      APP_NAME: 'product-service in docker'
-    ports:
-      - 5001:5001
-    networks:
-      - coffeeshop-network
+  # product:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile-product
+  #   image: go-coffeeshop-product
+  #   environment:
+  #     APP_NAME: 'product-service in docker'
+  #   ports:
+  #     - 5001:5001
+  #   networks:
+  #     - coffeeshop-network
 
-  counter:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile-counter
-    image: go-coffeeshop-counter
-    environment:
-      APP_NAME: 'counter-service in docker'
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-    ports:
-      - 5002:5002
-    depends_on:
-      - postgres
-      - rabbitmq
-    networks:
-      - coffeeshop-network
+  # counter:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile-counter
+  #   image: go-coffeeshop-counter
+  #   environment:
+  #     APP_NAME: 'counter-service in docker'
+  #     RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+  #   ports:
+  #     - 5002:5002
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   networks:
+  #     - coffeeshop-network
 
-  barista:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile-barista
-    image: go-coffeeshop-barista
-    environment:
-      APP_NAME: 'barista-service in docker'
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-    depends_on:
-      - postgres
-      - rabbitmq
-    networks:
-      - coffeeshop-network
+  # barista:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile-barista
+  #   image: go-coffeeshop-barista
+  #   environment:
+  #     APP_NAME: 'barista-service in docker'
+  #     RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+  #   depends_on:
+  #     - postgres
+  #     - rabbitmq
+  #   networks:
+  #     - coffeeshop-network
 
 networks:
   coffeeshop-network:

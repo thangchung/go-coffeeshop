@@ -15,11 +15,14 @@ RUN LATEST_COMPOSE_VERSION=$(curl -sSL "https://api.github.com/repos/docker/comp
     && curl -sSL "https://github.com/docker/compose/releases/download/${LATEST_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose \
     && chmod +x ~/.docker/cli-plugins/docker-compose
 
-# Substitute BIN for your bin directory.
-# Substitute VERSION for the current released version.
+# Install Buf
 RUN BIN="/usr/local/bin" && \
     VERSION="1.8.0" && \
     curl -sSL \
         "https://github.com/bufbuild/buf/releases/download/v${VERSION}/buf-$(uname -s)-$(uname -m)" \
         -o "${BIN}/buf" && \
     chmod +x "${BIN}/buf"
+
+# Install dbmate
+RUN curl -fsSL -o /usr/local/bin/dbmate https://github.com/amacneil/dbmate/releases/latest/download/dbmate-linux-amd64 \
+    && chmod +x /usr/local/bin/dbmate

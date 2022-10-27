@@ -19,6 +19,17 @@ service ProductService {
       tags: "ItemTypes"
     };
   }
+
+  rpc GetItemsByType(GetItemsByTypeRequest) returns (GetItemsByTypeResponse) {
+    option (google.api.http) = {
+      get: "/v1/api/items-by-types/{item_types}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List items by type"
+      description: "List items by type on the server."
+      tags: "ItemTypes"
+    };
+  }
 }
 
 message GetItemTypesRequest {}
@@ -26,7 +37,20 @@ message GetItemTypesResponse {
   repeated ItemTypeDto item_types = 1;
 }
 
+message GetItemsByTypeRequest{
+  string item_types = 1;
+}
+message GetItemsByTypeResponse{
+  repeated ItemDto items = 1;
+}
+
+message ItemDto {
+  double price = 1;
+  int32 type = 2;
+}
+
 message ItemTypeDto {
   string name = 1;
   int32 type = 2;
+  double price = 3;
 }

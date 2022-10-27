@@ -95,10 +95,11 @@ func (c *Consumer) Listen(topics []string) error {
 			var payload Payload
 
 			_ = json.Unmarshal(d.Body, &payload)
+			messageType := d.Type
 
 			go func() {
-				switch payload.Name {
-				case "drink_made":
+				switch messageType {
+				case "barista.ordered":
 					fmt.Println(payload)
 				default:
 					fmt.Println("default")
