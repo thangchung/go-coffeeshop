@@ -99,7 +99,7 @@ func (c *Consumer) Listen(topics []string) error {
 			go func() {
 				switch payload.Name {
 				case "drink_made":
-					fmt.Println("Got it")
+					fmt.Println(payload)
 				default:
 					fmt.Println("default")
 				}

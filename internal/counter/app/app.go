@@ -2,9 +2,8 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
 	"net"
 	"time"
 
@@ -14,6 +13,14 @@ import (
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
 )
+
+const (
+	OrderTopic     = "orders_topic"
+	RetryTimes     = 5
+	BackOffSeconds = 2
+)
+
+var ErrCannotConnectRabbitMQ = errors.New("cannot connect to rabbit")
 
 type App struct {
 	logger  *mylogger.Logger
@@ -28,6 +35,10 @@ type CounterServiceServerImpl struct {
 	rabbitConn *amqp.Connection
 }
 
+type Payload struct {
+	Name string `json:"name"`
+}
+
 func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, request *gen.GetListOrderFulfillmentRequest) (*gen.GetListOrderFulfillmentResponse, error) {
 	g.logger.Info("GET: GetListOrderFulfillment")
 
@@ -37,24 +48,34 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, 
 	}
 	defer ch.Close()
 
-	event := "test"
+	event := Payload{
+		Name: "drink_made",
+	}
 
-	err = ch.Publish(
-		"orders_topic",
+	eventBytes, err := json.Marshal(event)
+	if err != nil {
+		g.logger.LogError(err)
+	}
+
+	err = ch.PublishWithContext(
+		ctx,
+		OrderTopic,
 		"log.INFO",
 		false,
 		false,
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Body:        []byte(event),
+			Body:        eventBytes,
 		},
 	)
 
 	if err != nil {
-		log.Println(err)
+		g.logger.LogError(err)
+
 		return nil, err
 	}
-	log.Printf("Sending message: %s -> %s", event, "orders_topic")
+
+	g.logger.Info("Sending message: %s -> %s", event, "orders_topic")
 
 	res := gen.GetListOrderFulfillmentResponse{}
 
@@ -88,7 +109,7 @@ func (a *App) Run(ctx context.Context) error {
 	// ...
 
 	// RabbitMQ
-	conn, err := connectToRabbit()
+	conn, err := a.connectToRabbit()
 	if err != nil {
 		return err
 	}
@@ -119,36 +140,37 @@ func (a *App) Run(ctx context.Context) error {
 	return s.Serve(l)
 }
 
-func connectToRabbit() (*amqp.Connection, error) {
+func (a *App) connectToRabbit() (*amqp.Connection, error) {
 	var (
-		rabbitConn *amqp.Connection
-		counts     int64
-		rabbitURL  = "amqp://guest:guest@172.28.177.17:5672/"
+		rabbitConn  *amqp.Connection
+		counts      int64
+		rabbitMqURL = a.cfg.RabbitMQ.URL
 	)
 
 	for {
-		connection, err := amqp.Dial(rabbitURL)
+		connection, err := amqp.Dial(rabbitMqURL)
 		if err != nil {
-			fmt.Printf("rabbitmq at %s not ready...\n", rabbitURL)
+			a.logger.Error("RabbitMq at %s not ready...\n", rabbitMqURL)
 			counts++
 		} else {
-			fmt.Println()
 			rabbitConn = connection
 
 			break
 		}
 
-		if counts > 5 {
-			fmt.Println(err)
+		if counts > RetryTimes {
+			a.logger.LogError(err)
 
-			return nil, errors.New("cannot connect to rabbit")
+			return nil, ErrCannotConnectRabbitMQ
 		}
-		fmt.Println("Backing off for 2 seconds...")
-		time.Sleep(2 * time.Second)
+
+		a.logger.Info("Backing off for 2 seconds...")
+		time.Sleep(BackOffSeconds * time.Second)
 
 		continue
 	}
-	fmt.Println("Connected to RabbitMQ!")
+
+	a.logger.Info("Connected to RabbitMQ!")
 
 	return rabbitConn, nil
 }

@@ -12,6 +12,7 @@ type Interface interface {
 	Info(message string, args ...interface{})
 	Warn(message string, args ...interface{})
 	Error(message string, args ...interface{})
+	LogError(err error)
 	Fatal(message string, args ...interface{})
 }
 
@@ -57,6 +58,10 @@ func (l *Logger) Warn(message string, args ...interface{}) {
 
 func (l *Logger) Error(message string, args ...interface{}) {
 	l.logger.Errorf(message, args...)
+}
+
+func (l *Logger) LogError(err error) {
+	l.logger.Error(err)
 }
 
 func (l *Logger) Fatal(message string, args ...interface{}) {

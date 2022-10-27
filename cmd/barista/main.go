@@ -7,17 +7,24 @@ import (
 	"os"
 	"time"
 
+	"github.com/golang/glog"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/event"
 )
 
 const (
-	RetryTimes = 5
-	PowOf      = 2
+	RetryTimes     = 5
+	BackOffSeconds = 2
 )
 
 func main() {
-	rabbitConn, err := connect()
+	cfg, err := config.NewConfig()
+	if err != nil {
+		glog.Fatal(err)
+	}
+
+	rabbitConn, err := connect(cfg)
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
@@ -38,12 +45,12 @@ func main() {
 	}
 }
 
-func connect() (*amqp.Connection, error) {
+func connect(cfg *config.Config) (*amqp.Connection, error) {
 	var (
 		counts     int64
 		backOff    = 1 * time.Second
 		connection *amqp.Connection
-		rabbitURL  = "amqp://guest:guest@172.28.177.17:5672/"
+		rabbitURL  = cfg.RabbitMQ.URL
 	)
 
 	for {
@@ -64,8 +71,8 @@ func connect() (*amqp.Connection, error) {
 			return nil, err
 		}
 
-		fmt.Printf("Backing off for %d seconds...\n", int(math.Pow(float64(counts), PowOf)))
-		backOff = time.Duration(math.Pow(float64(counts), PowOf)) * time.Second
+		fmt.Printf("Backing off for %d seconds...\n", int(math.Pow(float64(counts), BackOffSeconds)))
+		backOff = time.Duration(math.Pow(float64(counts), BackOffSeconds)) * time.Second
 		time.Sleep(backOff)
 
 		continue

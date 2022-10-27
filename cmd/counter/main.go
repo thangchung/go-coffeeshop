@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"reflect"
 
 	"github.com/golang/glog"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
@@ -17,8 +15,6 @@ func main() {
 	if err != nil {
 		glog.Fatal(err)
 	}
-
-	fmt.Println(reflect.TypeOf(struct{}{}))
 
 	mylog := mylogger.New(cfg.Level)
 
