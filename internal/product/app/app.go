@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"net"
-	"reflect"
 	"strings"
 
 	"github.com/thangchung/go-coffeeshop/cmd/product/config"
@@ -25,51 +24,52 @@ type ProductServiceServerImpl struct {
 }
 
 var ItemTypes = map[string]gen.ItemTypeDto{
-	"0": {
+	"CAPPUCCINO": {
 		Name:  "CAPPUCCINO",
 		Type:  0,
 		Price: 4.5,
 	},
-	"1": {Name: "COFFEE_BLACK",
+	"COFFEE_BLACK": {
+		Name:  "COFFEE_BLACK",
 		Type:  1,
 		Price: 3,
 	},
-	"2": {
+	"COFFEE_WITH_ROOM": {
 		Name:  "COFFEE_WITH_ROOM",
 		Type:  2,
 		Price: 3,
 	},
-	"3": {
+	"ESPRESSO": {
 		Name:  "ESPRESSO",
 		Type:  3,
 		Price: 3.5,
 	},
-	"4": {
+	"ESPRESSO_DOUBLE": {
 		Name:  "ESPRESSO_DOUBLE",
 		Type:  4,
 		Price: 4.5,
 	},
-	"5": {
+	"LATTE": {
 		Name:  "LATTE",
 		Type:  5,
 		Price: 4.5,
 	},
-	"6": {
+	"CAKEPOP": {
 		Name:  "CAKEPOP",
 		Type:  6,
 		Price: 2.5,
 	},
-	"7": {
+	"CROISSANT": {
 		Name:  "CROISSANT",
 		Type:  7,
 		Price: 3.25,
 	},
-	"8": {
+	"MUFFIN": {
 		Name:  "MUFFIN",
 		Type:  8,
 		Price: 3,
 	},
-	"9": {
+	"CROISSANT_CHOCOLATE": {
 		Name:  "CROISSANT_CHOCOLATE",
 		Type:  9,
 		Price: 3.5,
@@ -83,8 +83,9 @@ func (g *ProductServiceServerImpl) GetItemTypes(ctx context.Context, request *ge
 
 	for _, v := range ItemTypes {
 		res.ItemTypes = append(res.ItemTypes, &gen.ItemTypeDto{
-			Name: v.Name,
-			Type: v.Type,
+			Name:  v.Name,
+			Type:  v.Type,
+			Price: v.Price,
 		})
 	}
 
@@ -92,14 +93,15 @@ func (g *ProductServiceServerImpl) GetItemTypes(ctx context.Context, request *ge
 }
 
 func (g *ProductServiceServerImpl) GetItemsByType(ctx context.Context, request *gen.GetItemsByTypeRequest) (*gen.GetItemsByTypeResponse, error) {
-	g.logger.Info("GET: GetItemsByType")
+	g.logger.Info("GET: GetItemsByType with %s", request.ItemTypes)
 
 	res := gen.GetItemsByTypeResponse{}
 
 	itemTypes := strings.Split(request.ItemTypes, ",")
+
 	for _, itemType := range itemTypes {
 		item := ItemTypes[itemType]
-		if !reflect.DeepEqual(item, gen.ItemTypeDto{}) {
+		if item.Name != "" {
 			res.Items = append(res.Items, &gen.ItemDto{
 				Price: item.Price,
 				Type:  item.Type,

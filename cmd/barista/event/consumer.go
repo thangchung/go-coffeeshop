@@ -6,6 +6,7 @@ import (
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	events "github.com/thangchung/go-coffeeshop/pkg/event"
 )
 
 const ExchangeName = "orders_topic"
@@ -42,10 +43,6 @@ func (c *Consumer) setup() error {
 		false,        // no-wait
 		nil,          // arguments
 	)
-}
-
-type Payload struct {
-	Name string `json:"name"`
 }
 
 func (c *Consumer) Listen(topics []string) error {
@@ -92,7 +89,7 @@ func (c *Consumer) Listen(topics []string) error {
 
 	go func() {
 		for d := range messages {
-			var payload Payload
+			var payload events.BaristaOrdered
 
 			_ = json.Unmarshal(d.Body, &payload)
 			messageType := d.Type
