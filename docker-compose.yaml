@@ -1,4 +1,4 @@
-version: "3.7"
+version: "3"
 
 services:
   postgres:
@@ -7,6 +7,8 @@ services:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=P@ssw0rd
+    healthcheck:
+      test: ["CMD", "pg_isready"]
     ports:
       - "5432:5432"
     networks:
@@ -17,11 +19,34 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
     ports:
       - "5672:5672"
       - "15672:15672"
     networks:
       - coffeeshop-network
+
+  # counterdb_migration:
+  #   image: amacneil/dbmate:1
+  #   user: root
+  #   environment:
+  #     DATABASE_URL: postgres://postgres:P@ssw0rd@postgres:5432/counterdb_dev?sslmode=disable
+  #   restart: always
+  #   volumes:
+  #     - ${PWD}/cmd/counter/db/:/db/
+  #   entrypoint: ["dbmate", "--wait", "up"]
+  #   # entrypoint: ["ls", "-la", "/db/migrations/"]
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - coffeeshop-network
   
   # proxy:
   #   build:

@@ -29,6 +29,12 @@ run-proxy:
 	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/proxy
 .PHONY: run-proxy
 
+run-migrator:
+	cd cmd/counter && dbmate up &>/dev/null && cd -
+	cd cmd/barista && dbmate up &>/dev/null && cd -
+	cd cmd/kitchen && dbmate up &>/dev/null && cd -
+.PHONY: run-migrator
+
 test:
 	go test -v main.go
 
