@@ -2,18 +2,17 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net"
 	"time"
 
-	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
-	"github.com/thangchung/go-coffeeshop/internal/counter/entity"
-	events "github.com/thangchung/go-coffeeshop/pkg/event"
+	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecase/repo"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
-	gen "github.com/thangchung/go-coffeeshop/proto/gen"
+	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"google.golang.org/grpc"
 )
 
@@ -32,116 +31,6 @@ type App struct {
 	address string
 }
 
-type CounterServiceServerImpl struct {
-	gen.UnimplementedCounterServiceServer
-	logger     *mylogger.Logger
-	rabbitConn *amqp.Connection
-}
-
-type Payload struct {
-	Name string `json:"name"`
-}
-
-func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, request *gen.GetListOrderFulfillmentRequest) (*gen.GetListOrderFulfillmentResponse, error) {
-	g.logger.Info("GET: GetListOrderFulfillment")
-
-	ch, err := g.rabbitConn.Channel()
-	if err != nil {
-		panic(err)
-	}
-	defer ch.Close()
-
-	event := Payload{
-		Name: "drink_made",
-	}
-
-	eventBytes, err := json.Marshal(event)
-	if err != nil {
-		g.logger.LogError(err)
-	}
-
-	err = ch.PublishWithContext(
-		ctx,
-		OrderTopic,
-		"log.INFO",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        eventBytes,
-		},
-	)
-
-	if err != nil {
-		g.logger.LogError(err)
-
-		return nil, err
-	}
-
-	g.logger.Info("Sending message: %s -> %s", event, "orders_topic")
-
-	res := gen.GetListOrderFulfillmentResponse{}
-
-	return &res, nil
-}
-
-func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.PlaceOrderRequest) (*gen.PlaceOrderResponse, error) {
-	g.logger.Info("POST: PlaceOrder")
-
-	g.logger.Debug("request: %s", request)
-
-	// add order
-	order, err := entity.CreateOrderFrom(request)
-	if err != nil {
-		return nil, err
-	}
-
-	g.logger.Debug("order created: %s", *order)
-
-	// publish order events
-	ch, err := g.rabbitConn.Channel()
-	if err != nil {
-		panic(err)
-	}
-	defer ch.Close()
-
-	event := events.BaristaOrdered{
-		OrderID:    order.ID,
-		ItemLineID: uuid.New(), //todo
-		ItemType:   1,          //todo
-	}
-
-	eventBytes, err := json.Marshal(event)
-	if err != nil {
-		g.logger.LogError(err)
-	}
-
-	err = ch.PublishWithContext(
-		ctx,
-		OrderTopic,
-		"log.INFO",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Type:        "barista.ordered",
-			Body:        eventBytes,
-		},
-	)
-
-	if err != nil {
-		g.logger.LogError(err)
-
-		return nil, err
-	}
-
-	g.logger.Info("Sending message: %s -> %s", event, "orders_topic")
-
-	res := gen.PlaceOrderResponse{}
-
-	return &res, nil
-}
-
 func New(log *mylogger.Logger, cfg *config.Config) *App {
 	return &App{
 		logger:  log,
@@ -155,17 +44,21 @@ func (a *App) Run(ctx context.Context) error {
 	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
 
 	// Repository
-	// ...
+	pg, err := postgres.NewPostgres(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
+	if err != nil {
+		a.logger.Fatal("app - Run - postgres.NewPostgres: %w", err)
+	}
+	defer pg.Close()
 
 	// Use case
-	// ...
+	queryOrderFulfillmentUseCase := usecase.NewQueryOrderFulfillmentUseCase(repo.NewQueryOrderFulfillmentRepo(pg))
 
 	// RabbitMQ
-	conn, err := a.connectToRabbit()
+	amqpConn, err := a.connectToRabbit()
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer amqpConn.Close()
 
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
@@ -180,7 +73,7 @@ func (a *App) Run(ctx context.Context) error {
 	}()
 
 	s := grpc.NewServer()
-	gen.RegisterCounterServiceServer(s, &CounterServiceServerImpl{logger: a.logger, rabbitConn: conn})
+	counterGrpc.NewCounterServiceServerGrpc(s, amqpConn, queryOrderFulfillmentUseCase, a.logger)
 
 	go func() {
 		defer s.GracefulStop()
@@ -194,7 +87,7 @@ func (a *App) Run(ctx context.Context) error {
 
 func (a *App) connectToRabbit() (*amqp.Connection, error) {
 	var (
-		rabbitConn  *amqp.Connection
+		amqpConn    *amqp.Connection
 		counts      int64
 		rabbitMqURL = a.cfg.RabbitMQ.URL
 	)
@@ -205,7 +98,7 @@ func (a *App) connectToRabbit() (*amqp.Connection, error) {
 			a.logger.Error("RabbitMq at %s not ready...\n", rabbitMqURL)
 			counts++
 		} else {
-			rabbitConn = connection
+			amqpConn = connection
 
 			break
 		}
@@ -224,5 +117,5 @@ func (a *App) connectToRabbit() (*amqp.Connection, error) {
 
 	a.logger.Info("Connected to RabbitMQ!")
 
-	return rabbitConn, nil
+	return amqpConn, nil
 }

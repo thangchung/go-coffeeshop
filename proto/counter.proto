@@ -39,11 +39,12 @@ message GetListOrderFulfillmentResponse {
 }
 
 message OrderDto {
-    common.OrderSource order_source = 1;
-    string loyalty_member_id = 2;
-    common.Status order_status = 3;
-    common.Location localtion = 4;
-    repeated LineItemDto line_items = 5;
+    string id = 1;
+    common.OrderSource order_source = 2;
+    string loyalty_member_id = 3;
+    common.Status order_status = 4;
+    common.Location localtion = 5;
+    repeated LineItemDto line_items = 6;
 }
 
 message LineItemDto {

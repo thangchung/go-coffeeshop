@@ -7,7 +7,7 @@ http:
   port: 5002
 
 rabbit_mq:
-  url: amqp://guest:guest@172.28.191.206:5672/
+  url: amqp://guest:guest@172.22.168.120:5672/
 
 logger:
   log_level: 'debug'

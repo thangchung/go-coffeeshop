@@ -151,6 +151,9 @@
     "counterapiOrderDto": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "orderSource": {
           "$ref": "#/definitions/commonOrderSource"
         },
