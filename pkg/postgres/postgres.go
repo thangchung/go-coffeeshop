@@ -25,7 +25,7 @@ type Postgres struct {
 	Pool    *pgxpool.Pool
 }
 
-func NewPostgres(url string, opts ...Option) (*Postgres, error) {
+func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
 	pg := &Postgres{
 		maxPoolSize:  _defaultMaxPoolSize,
 		connAttempts: _defaultConnAttempts,

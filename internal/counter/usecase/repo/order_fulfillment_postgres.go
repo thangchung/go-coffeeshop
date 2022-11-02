@@ -11,15 +11,16 @@ import (
 const _defaultEntityCap = 64
 
 type DefaultQueryOrderFulfillmentRepo struct {
-	*postgres.Postgres
+	ctx context.Context
+	pg  *postgres.Postgres
 }
 
-func NewQueryOrderFulfillmentRepo(pg *postgres.Postgres) *DefaultQueryOrderFulfillmentRepo {
-	return &DefaultQueryOrderFulfillmentRepo{pg}
+func NewQueryOrderFulfillmentRepo(ctx context.Context, pg *postgres.Postgres) *DefaultQueryOrderFulfillmentRepo {
+	return &DefaultQueryOrderFulfillmentRepo{ctx: ctx, pg: pg}
 }
 
-func (d DefaultQueryOrderFulfillmentRepo) GetListOrderFulfillment(ctx context.Context) ([]gen.OrderDto, error) {
-	sql, _, err := d.Builder.
+func (d DefaultQueryOrderFulfillmentRepo) GetListOrderFulfillment() ([]gen.OrderDto, error) {
+	sql, _, err := d.pg.Builder.
 		Select("orders.id").
 		From(`"order".orders`).Join(`"order".line_items USING(id)`).
 		ToSql()
@@ -27,7 +28,7 @@ func (d DefaultQueryOrderFulfillmentRepo) GetListOrderFulfillment(ctx context.Co
 		return nil, fmt.Errorf("DefaultQueryOrderFulfillmentRepo - GetListOrderFulfillment - r.Builder: %w", err)
 	}
 
-	rows, err := d.Pool.Query(ctx, sql)
+	rows, err := d.pg.Pool.Query(d.ctx, sql)
 	if err != nil {
 		return nil, fmt.Errorf("DefaultQueryOrderFulfillmentRepo - GetListOrderFulfillment - r.Pool.Query: %w", err)
 	}

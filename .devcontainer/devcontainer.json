@@ -11,7 +11,7 @@
         // new files getting created as root, but you may need to update the USER_UID
         // and USER_GID in .devcontainer/Dockerfile to match your user if not 1000.
         "-u",
-        "root",
+        "vscode",
         // Mount go mod cache
         "-v",
         "coffeeshop-gomodcache:/go/pkg",
@@ -96,7 +96,9 @@
         "bungcip.better-toml",
         "eamodio.gitlens",
         "casualjim.gotemplate",
-        "davidanson.vscode-markdownlint"
+        "davidanson.vscode-markdownlint",
+        "cweijan.vscode-mysql-client2",
+        "bierner.markdown-mermaid"
     ],
     "postCreateCommand": "go version",
     "features": {

@@ -7,8 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/thangchung/go-coffeeshop/internal/counter/entity"
-	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
+	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	events "github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
@@ -23,9 +22,15 @@ const (
 func NewCounterServiceServerGrpc(
 	grpcServer *grpc.Server,
 	amqpConn *amqp.Connection,
-	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase,
+	queryOrderFulfillmentUseCase domain.QueryOrderFulfillmentUseCase,
+	productServiceClient domain.ProductServiceClient,
 	log *mylogger.Logger) {
-	svc := CounterServiceServerImpl{logger: log, amqpConn: amqpConn, queryOrderFulfillmentUseCase: queryOrderFulfillmentUseCase}
+	svc := CounterServiceServerImpl{
+		logger:                       log,
+		amqpConn:                     amqpConn,
+		queryOrderFulfillmentUseCase: queryOrderFulfillmentUseCase,
+		productServiceClient:         productServiceClient,
+	}
 
 	gen.RegisterCounterServiceServer(grpcServer, &svc)
 
@@ -36,7 +41,8 @@ type CounterServiceServerImpl struct {
 	gen.UnimplementedCounterServiceServer
 	logger                       *mylogger.Logger
 	amqpConn                     *amqp.Connection
-	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase
+	productServiceClient         domain.ProductServiceClient
+	queryOrderFulfillmentUseCase domain.QueryOrderFulfillmentUseCase
 }
 
 func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, request *gen.GetListOrderFulfillmentRequest) (*gen.GetListOrderFulfillmentResponse, error) {
@@ -44,7 +50,7 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, 
 
 	res := gen.GetListOrderFulfillmentResponse{}
 
-	entities, err := g.queryOrderFulfillmentUseCase.GetListOrderFulfillment(ctx)
+	entities, err := g.queryOrderFulfillmentUseCase.GetListOrderFulfillment()
 	if err != nil {
 		return nil, fmt.Errorf("CounterServiceServerImpl - GetListOrderFulfillment - g.queryOrderFulfillmentUseCase.GetListOrderFulfillment: %w", err)
 	}
@@ -64,7 +70,7 @@ func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.
 	g.logger.Debug("request: %s", request)
 
 	// add order
-	order, err := entity.CreateOrderFrom(request)
+	order, err := domain.CreateOrderFrom(request, g.productServiceClient)
 	if err != nil {
 		return nil, err
 	}

@@ -1,16 +1,9 @@
-package entity
+package domain
 
 import (
-	"context"
-	"fmt"
-	"strings"
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/samber/lo"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Order struct {
@@ -32,7 +25,7 @@ func NewOrder(orderSource gen.OrderSource, loyaltyMemberID uuid.UUID, orderStatu
 	}
 }
 
-func CreateOrderFrom(request *gen.PlaceOrderRequest) (*Order, error) {
+func CreateOrderFrom(request *gen.PlaceOrderRequest, productServiceClient ProductServiceClient) (*Order, error) {
 	loyaltyMemberID, err := uuid.Parse(request.LoyaltyMemberId)
 	if err != nil {
 		return nil, err
@@ -40,26 +33,11 @@ func CreateOrderFrom(request *gen.PlaceOrderRequest) (*Order, error) {
 
 	order := NewOrder(request.OrderSource, loyaltyMemberID, gen.Status_IN_PROGRESS, request.Location)
 
-	//TODO: remove hard code URL
-	conn, err := grpc.Dial("0.0.0.0:5001", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	c := gen.NewProductServiceClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
 	numberOfBaristaItems := len(request.BaristaItems) > 0
 	numberOfKitchenItems := len(request.KitchenItems) > 0
 
 	if numberOfBaristaItems {
-		itemTypes := lo.Reduce(request.BaristaItems, func(agg string, item *gen.CommandItem, _ int) string {
-			return fmt.Sprintf("%s,%s", agg, item.ItemType)
-		}, "")
-
-		itemTypesRes, err := c.GetItemsByType(ctx, &gen.GetItemsByTypeRequest{ItemTypes: strings.TrimLeft(itemTypes, ",")})
+		itemTypesRes, err := productServiceClient.GetItemsByType(request, true)
 		if err != nil {
 			return nil, err
 		}
@@ -81,11 +59,7 @@ func CreateOrderFrom(request *gen.PlaceOrderRequest) (*Order, error) {
 	}
 
 	if numberOfKitchenItems {
-		itemTypes := lo.Reduce(request.KitchenItems, func(agg string, item *gen.CommandItem, _ int) string {
-			return fmt.Sprintf("%s,%s", agg, item.ItemType)
-		}, "")
-
-		itemTypesRes, err := c.GetItemsByType(ctx, &gen.GetItemsByTypeRequest{ItemTypes: strings.TrimLeft(itemTypes, ",")})
+		itemTypesRes, err := productServiceClient.GetItemsByType(request, false)
 		if err != nil {
 			return nil, err
 		}
