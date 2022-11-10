@@ -6,8 +6,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
 	events "github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
@@ -15,21 +19,32 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-const (
-	OrderTopic = "orders_topic"
-)
+type CounterServiceServerImpl struct {
+	gen.UnimplementedCounterServiceServer
+	logger                       *mylogger.Logger
+	amqpConn                     *amqp.Connection
+	cfg                          *config.Config
+	productServiceClient         domain.ProductServiceClient
+	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase
+	orderPublisher               counterRabbitMQ.OrderPublisher
+}
 
 func NewCounterServiceServerGrpc(
 	grpcServer *grpc.Server,
 	amqpConn *amqp.Connection,
-	queryOrderFulfillmentUseCase domain.QueryOrderFulfillmentUseCase,
+	cfg *config.Config,
+	log *mylogger.Logger,
+	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase,
 	productServiceClient domain.ProductServiceClient,
-	log *mylogger.Logger) {
+	orderPublisher counterRabbitMQ.OrderPublisher,
+) {
 	svc := CounterServiceServerImpl{
+		cfg:                          cfg,
 		logger:                       log,
 		amqpConn:                     amqpConn,
 		queryOrderFulfillmentUseCase: queryOrderFulfillmentUseCase,
 		productServiceClient:         productServiceClient,
+		orderPublisher:               orderPublisher,
 	}
 
 	gen.RegisterCounterServiceServer(grpcServer, &svc)
@@ -37,15 +52,10 @@ func NewCounterServiceServerGrpc(
 	reflection.Register(grpcServer)
 }
 
-type CounterServiceServerImpl struct {
-	gen.UnimplementedCounterServiceServer
-	logger                       *mylogger.Logger
-	amqpConn                     *amqp.Connection
-	productServiceClient         domain.ProductServiceClient
-	queryOrderFulfillmentUseCase domain.QueryOrderFulfillmentUseCase
-}
-
-func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, request *gen.GetListOrderFulfillmentRequest) (*gen.GetListOrderFulfillmentResponse, error) {
+func (g *CounterServiceServerImpl) GetListOrderFulfillment(
+	ctx context.Context,
+	request *gen.GetListOrderFulfillmentRequest,
+) (*gen.GetListOrderFulfillmentResponse, error) {
 	g.logger.Info("GET: GetListOrderFulfillment")
 
 	res := gen.GetListOrderFulfillmentResponse{}
@@ -64,7 +74,10 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(ctx context.Context, 
 	return &res, nil
 }
 
-func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.PlaceOrderRequest) (*gen.PlaceOrderResponse, error) {
+func (g *CounterServiceServerImpl) PlaceOrder(
+	ctx context.Context,
+	request *gen.PlaceOrderRequest,
+) (*gen.PlaceOrderResponse, error) {
 	g.logger.Info("POST: PlaceOrder")
 
 	g.logger.Debug("request: %s", request)
@@ -78,11 +91,11 @@ func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.
 	g.logger.Debug("order created: %s", *order)
 
 	// publish order events
-	ch, err := g.amqpConn.Channel()
-	if err != nil {
-		panic(err)
-	}
-	defer ch.Close()
+	// ch, err := g.amqpConn.Channel()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer ch.Close()
 
 	event := events.BaristaOrdered{
 		OrderID:    order.ID,
@@ -95,26 +108,33 @@ func (g *CounterServiceServerImpl) PlaceOrder(ctx context.Context, request *gen.
 		g.logger.LogError(err)
 	}
 
-	err = ch.PublishWithContext(
-		ctx,
-		OrderTopic,
-		"log.INFO",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Type:        "barista.ordered",
-			Body:        eventBytes,
-		},
-	)
-
+	err = g.orderPublisher.Publish(ctx, eventBytes, "text/plain")
 	if err != nil {
 		g.logger.LogError(err)
 
-		return nil, err
+		return nil, errors.Wrap(err, "orderPublisher - Publish")
 	}
 
-	g.logger.Info("Sending message: %s -> %s", event, OrderTopic)
+	// err = ch.PublishWithContext(
+	// 	ctx,
+	// 	OrderTopic,
+	// 	"log.INFO",
+	// 	false,
+	// 	false,
+	// 	amqp.Publishing{
+	// 		ContentType: "text/plain",
+	// 		Type:        "barista.ordered",
+	// 		Body:        eventBytes,
+	// 	},
+	// )
+
+	// if err != nil {
+	// 	g.logger.LogError(err)
+
+	// 	return nil, err
+	// }
+
+	g.logger.Info("Sending message: %s -> %s", event, g.cfg.RabbitMQ.Exchange)
 
 	res := gen.PlaceOrderResponse{}
 

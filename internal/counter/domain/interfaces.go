@@ -5,10 +5,6 @@ import (
 )
 
 type (
-	QueryOrderFulfillmentUseCase interface {
-		GetListOrderFulfillment() ([]gen.OrderDto, error)
-	}
-
 	QueryOrderFulfillmentRepo interface {
 		GetListOrderFulfillment() ([]gen.OrderDto, error)
 	}

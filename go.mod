@@ -9,6 +9,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0
 	github.com/ilyakaznacheev/cleanenv v1.3.0
 	github.com/jackc/pgx/v4 v4.17.2
+	github.com/pkg/errors v0.8.1
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/samber/lo v1.33.0
 	github.com/sirupsen/logrus v1.9.0

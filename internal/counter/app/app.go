@@ -4,9 +4,11 @@ import (
 	"context"
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	mygrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
+	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
+	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecase/repo"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
@@ -60,7 +62,16 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	var productServiceClient domain.ProductServiceClient = mygrpc.NewProductServiceClient(ctx, conn)
+	orderPublisher, err := counterRabbitMQ.NewOrderPublisher(amqpConn, a.cfg, a.logger)
+	if err != nil {
+		return errors.Wrap(err, "counterRabbitMQ-NewOrderPublisher")
+	}
+
+	defer orderPublisher.CloseChan()
+
+	a.logger.Info("Order Publisher initialized")
+
+	var productServiceClient domain.ProductServiceClient = counterGrpc.NewProductServiceClient(ctx, conn)
 
 	// Use case
 	queryOrderFulfillmentUseCase := usecase.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
@@ -80,7 +91,15 @@ func (a *App) Run(ctx context.Context) error {
 	}()
 
 	server := grpc.NewServer()
-	mygrpc.NewCounterServiceServerGrpc(server, amqpConn, queryOrderFulfillmentUseCase, productServiceClient, a.logger)
+	counterGrpc.NewCounterServiceServerGrpc(
+		server,
+		amqpConn,
+		a.cfg,
+		a.logger,
+		queryOrderFulfillmentUseCase,
+		productServiceClient,
+		*orderPublisher,
+	)
 
 	go func() {
 		defer server.GracefulStop()

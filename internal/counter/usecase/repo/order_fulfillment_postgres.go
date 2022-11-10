@@ -19,7 +19,7 @@ func NewQueryOrderFulfillmentRepo(ctx context.Context, pg *postgres.Postgres) *D
 	return &DefaultQueryOrderFulfillmentRepo{ctx: ctx, pg: pg}
 }
 
-func (d DefaultQueryOrderFulfillmentRepo) GetListOrderFulfillment() ([]gen.OrderDto, error) {
+func (d *DefaultQueryOrderFulfillmentRepo) GetListOrderFulfillment() ([]gen.OrderDto, error) {
 	sql, _, err := d.pg.Builder.
 		Select("orders.id").
 		From(`"order".orders`).Join(`"order".line_items USING(id)`).

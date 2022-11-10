@@ -8,6 +8,12 @@ import (
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
+type (
+	QueryOrderFulfillmentUseCase interface {
+		GetListOrderFulfillment() ([]gen.OrderDto, error)
+	}
+)
+
 type DefaultQueryOrderFulfillmentUseCase struct {
 	ctx  context.Context
 	repo domain.QueryOrderFulfillmentRepo
@@ -20,7 +26,7 @@ func NewQueryOrderFulfillmentUseCase(ctx context.Context, r domain.QueryOrderFul
 	}
 }
 
-func (d DefaultQueryOrderFulfillmentUseCase) GetListOrderFulfillment() ([]gen.OrderDto, error) {
+func (d *DefaultQueryOrderFulfillmentUseCase) GetListOrderFulfillment() ([]gen.OrderDto, error) {
 	entities, err := d.repo.GetListOrderFulfillment()
 	if err != nil {
 		return nil, fmt.Errorf("NewQueryOrderFulfillmentUseCase - GetListOrderFulfillment - s.repo.GetListOrderFulfillment: %w", err)

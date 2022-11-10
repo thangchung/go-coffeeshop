@@ -20,7 +20,7 @@ run-counter:
 .PHONY: run-counter
 
 run-barista:
-	cd cmd/counter && go mod tidy && go mod download && \
+	cd cmd/barista && go mod tidy && go mod download && \
 	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/barista
 .PHONY: run-barista
 
