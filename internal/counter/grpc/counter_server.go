@@ -2,17 +2,14 @@ package grpc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
-	events "github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
@@ -24,7 +21,7 @@ type CounterServiceServerImpl struct {
 	logger                       *mylogger.Logger
 	amqpConn                     *amqp.Connection
 	cfg                          *config.Config
-	productServiceClient         domain.ProductServiceClient
+	productDomainService         domain.ProductDomainService
 	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase
 	orderPublisher               counterRabbitMQ.OrderPublisher
 }
@@ -35,7 +32,7 @@ func NewCounterServiceServerGrpc(
 	cfg *config.Config,
 	log *mylogger.Logger,
 	queryOrderFulfillmentUseCase usecase.QueryOrderFulfillmentUseCase,
-	productServiceClient domain.ProductServiceClient,
+	productDomainService domain.ProductDomainService,
 	orderPublisher counterRabbitMQ.OrderPublisher,
 ) {
 	svc := CounterServiceServerImpl{
@@ -43,7 +40,7 @@ func NewCounterServiceServerGrpc(
 		logger:                       log,
 		amqpConn:                     amqpConn,
 		queryOrderFulfillmentUseCase: queryOrderFulfillmentUseCase,
-		productServiceClient:         productServiceClient,
+		productDomainService:         productDomainService,
 		orderPublisher:               orderPublisher,
 	}
 
@@ -83,10 +80,13 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 	g.logger.Debug("request: %s", request)
 
 	// add order
-	order, err := domain.CreateOrderFrom(request, g.productServiceClient)
+	order, err := domain.CreateOrderFrom(ctx, request, g.productDomainService, g.orderPublisher)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "PlaceOrder - domain.CreateOrderFrom")
 	}
+
+	// todo: save to database
+	// ...
 
 	g.logger.Debug("order created: %s", *order)
 
@@ -97,23 +97,23 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 	// }
 	// defer ch.Close()
 
-	event := events.BaristaOrdered{
-		OrderID:    order.ID,
-		ItemLineID: uuid.New(), //todo
-		ItemType:   1,          //todo
-	}
+	// event := events.BaristaOrdered{
+	// 	OrderID:    order.ID,
+	// 	ItemLineID: uuid.New(), //todo
+	// 	ItemType:   1,          //todo
+	// }
 
-	eventBytes, err := json.Marshal(event)
-	if err != nil {
-		g.logger.LogError(err)
-	}
+	// eventBytes, err := json.Marshal(event)
+	// if err != nil {
+	// 	g.logger.LogError(err)
+	// }
 
-	err = g.orderPublisher.Publish(ctx, eventBytes, "text/plain")
-	if err != nil {
-		g.logger.LogError(err)
+	// err = g.orderPublisher.Publish(ctx, eventBytes, "text/plain")
+	// if err != nil {
+	// 	g.logger.LogError(err)
 
-		return nil, errors.Wrap(err, "orderPublisher - Publish")
-	}
+	// 	return nil, errors.Wrap(err, "orderPublisher - Publish")
+	// }
 
 	// err = ch.PublishWithContext(
 	// 	ctx,
@@ -134,7 +134,7 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 	// 	return nil, err
 	// }
 
-	g.logger.Info("Sending message: %s -> %s", event, g.cfg.RabbitMQ.Exchange)
+	// g.logger.Info("Sending message: %s -> %s", event, g.cfg.RabbitMQ.Exchange)
 
 	res := gen.PlaceOrderResponse{}
 

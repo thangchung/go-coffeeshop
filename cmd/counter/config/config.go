@@ -11,11 +11,12 @@ import (
 
 type (
 	Config struct {
-		configs.App  `yaml:"app"`
-		configs.HTTP `yaml:"http"`
-		configs.Log  `yaml:"logger"`
-		PG           `yaml:"postgres"`
-		RabbitMQ     `yaml:"rabbit_mq"`
+		configs.App   `yaml:"app"`
+		configs.HTTP  `yaml:"http"`
+		configs.Log   `yaml:"logger"`
+		PG            `yaml:"postgres"`
+		RabbitMQ      `yaml:"rabbit_mq"`
+		ProductClient `yaml:"product_client"`
 	}
 
 	PG struct {
@@ -29,6 +30,10 @@ type (
 		Queue       string `env-required:"true" yaml:"queue" env:"RABBITMQ_Queue"`
 		RoutingKey  string `env-required:"true" yaml:"routing_key" env:"RABBITMQ_RoutingKey"`
 		ConsumerTag string `env-required:"true" yaml:"consumer_tag" env:"RABBITMQ_ConsumerTag"`
+	}
+
+	ProductClient struct {
+		URL string `env-required:"true" yaml:"url" env:"PRODUCT_CLIENT_URL"`
 	}
 )
 

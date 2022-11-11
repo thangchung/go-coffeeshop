@@ -52,6 +52,22 @@ In here, we can find `172.17.0.1`, then use it for all accesses in `docker-from-
 > buf generate
 ```
 
+## Env
+
+Create `.env` at your root with content as
+
+```bash
+PG_URL=postgres://postgres:P@ssw0rd@<your devcontainer IP>:5432/postgres
+```
+
+## Migrations
+
+Add migration for `counter-api`
+
+```bash
+> migrate create -seq -dir cmd/counter/db/migrations -ext sql init_db
+```
+
 ## Sample
 
 ``` mermaid

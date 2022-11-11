@@ -22,5 +22,6 @@ EXPOSE 5002
 
 # GOPATH for scratch images is /
 COPY --from=builder /app/cmd/counter/config.yml /
+COPY --from=builder /app/db/migrations /db/migrations
 COPY --from=builder /bin/app /app
 CMD ["/app"]

@@ -1,3 +1,6 @@
+include .env
+export
+
 PRODUCT_BINARY_NAME=product.out
 PROXY_BINARY_NAME=proxy.out
 

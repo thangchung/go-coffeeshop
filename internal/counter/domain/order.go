@@ -1,8 +1,14 @@
 package domain
 
 import (
+	"context"
+	"encoding/json"
+
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/samber/lo"
+	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
+	events "github.com/thangchung/go-coffeeshop/pkg/event"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
@@ -15,7 +21,12 @@ type Order struct {
 	LineItems       []LineItem
 }
 
-func NewOrder(orderSource gen.OrderSource, loyaltyMemberID uuid.UUID, orderStatus gen.Status, location gen.Location) *Order {
+func NewOrder(
+	orderSource gen.OrderSource,
+	loyaltyMemberID uuid.UUID,
+	orderStatus gen.Status,
+	location gen.Location,
+) *Order {
 	return &Order{
 		ID:              uuid.New(),
 		OrderSource:     orderSource,
@@ -25,7 +36,12 @@ func NewOrder(orderSource gen.OrderSource, loyaltyMemberID uuid.UUID, orderStatu
 	}
 }
 
-func CreateOrderFrom(request *gen.PlaceOrderRequest, productServiceClient ProductServiceClient) (*Order, error) {
+func CreateOrderFrom(
+	ctx context.Context,
+	request *gen.PlaceOrderRequest,
+	productDomainService ProductDomainService,
+	orderPublisher counterRabbitMQ.OrderPublisher,
+) (*Order, error) {
 	loyaltyMemberID, err := uuid.Parse(request.LoyaltyMemberId)
 	if err != nil {
 		return nil, err
@@ -37,7 +53,7 @@ func CreateOrderFrom(request *gen.PlaceOrderRequest, productServiceClient Produc
 	numberOfKitchenItems := len(request.KitchenItems) > 0
 
 	if numberOfBaristaItems {
-		itemTypesRes, err := productServiceClient.GetItemsByType(request, true)
+		itemTypesRes, err := productDomainService.GetItemsByType(request, true)
 		if err != nil {
 			return nil, err
 		}
@@ -50,16 +66,19 @@ func CreateOrderFrom(request *gen.PlaceOrderRequest, productServiceClient Produc
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), gen.Status_IN_PROGRESS, true)
 
-				//TODO: add domain events
-				// ...
+				err = publishBaristaOrderEvent(ctx, order.ID, lineItem.ID, lineItem.ItemType, orderPublisher, true)
 
 				order.LineItems = append(order.LineItems, *lineItem)
 			}
 		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if numberOfKitchenItems {
-		itemTypesRes, err := productServiceClient.GetItemsByType(request, false)
+		itemTypesRes, err := productDomainService.GetItemsByType(request, false)
 		if err != nil {
 			return nil, err
 		}
@@ -72,13 +91,67 @@ func CreateOrderFrom(request *gen.PlaceOrderRequest, productServiceClient Produc
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), gen.Status_IN_PROGRESS, false)
 
-				//TODO: add domain events
-				// ...
+				err = publishBaristaOrderEvent(ctx, order.ID, lineItem.ID, lineItem.ItemType, orderPublisher, false)
 
 				order.LineItems = append(order.LineItems, *lineItem)
 			}
 		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return order, nil
+}
+
+func publishBaristaOrderEvent(
+	ctx context.Context,
+	orderID uuid.UUID,
+	lineItemID uuid.UUID,
+	itemType gen.ItemType,
+	publisher counterRabbitMQ.OrderPublisher,
+	isBarista bool,
+) error {
+	if isBarista {
+		// todo: refactor to event domain dispatcher
+		// ...
+		event := events.BaristaOrdered{
+			OrderID:    orderID,
+			ItemLineID: lineItemID,
+			ItemType:   itemType,
+		}
+
+		eventBytes, err := json.Marshal(event)
+		if err != nil {
+			return errors.Wrap(err, "json.Marshal - events.BaristaOrdered")
+		}
+
+		err = publisher.Publish(ctx, eventBytes, "text/plain")
+		if err != nil {
+			return errors.Wrap(err, "orderPublisher - Publish")
+		}
+
+		return nil
+	} else {
+		// todo: refactor to event domain dispatcher
+		// ...
+		event := events.KitchenOrdered{
+			OrderID:    orderID,
+			ItemLineID: lineItemID,
+			ItemType:   itemType,
+		}
+
+		eventBytes, err := json.Marshal(event)
+		if err != nil {
+			return errors.Wrap(err, "json.Marshal - events.BaristaOrdered")
+		}
+
+		err = publisher.Publish(ctx, eventBytes, "text/plain")
+		if err != nil {
+			return errors.Wrap(err, "orderPublisher - Publish")
+		}
+
+		return nil
+	}
 }

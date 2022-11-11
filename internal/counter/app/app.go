@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,7 @@ func New(log *mylogger.Logger, cfg *config.Config) *App {
 		logger:  log,
 		cfg:     cfg,
 		network: "tcp",
-		address: "0.0.0.0:5002",
+		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
 	}
 }
 
@@ -56,7 +57,7 @@ func (a *App) Run(ctx context.Context) error {
 	defer amqpConn.Close()
 
 	// gRPC Client
-	conn, err := grpc.Dial("0.0.0.0:5001", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(a.cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	a.logger.Info("Order Publisher initialized")
 
-	var productServiceClient domain.ProductServiceClient = counterGrpc.NewProductServiceClient(ctx, conn)
+	var productDomainService domain.ProductDomainService = counterGrpc.NewProductServiceClient(ctx, conn)
 
 	// Use case
 	queryOrderFulfillmentUseCase := usecase.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
@@ -97,7 +98,7 @@ func (a *App) Run(ctx context.Context) error {
 		a.cfg,
 		a.logger,
 		queryOrderFulfillmentUseCase,
-		productServiceClient,
+		productDomainService,
 		*orderPublisher,
 	)
 

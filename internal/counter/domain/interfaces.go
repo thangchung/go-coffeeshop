@@ -9,7 +9,7 @@ type (
 		GetListOrderFulfillment() ([]gen.OrderDto, error)
 	}
 
-	ProductServiceClient interface {
+	ProductDomainService interface {
 		GetItemsByType(*gen.PlaceOrderRequest, bool) (*gen.GetItemsByTypeResponse, error)
 	}
 )

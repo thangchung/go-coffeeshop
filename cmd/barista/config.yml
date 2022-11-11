@@ -7,7 +7,7 @@ http:
   port: 5002
 
 rabbit_mq:
-  url: amqp://guest:guest@172.22.168.110:5672/
+  url: amqp://guest:guest@172.22.174.138:5672/
   exchange: orders-exchange
   queue: orders-queue
   routing_key: orders-routing-key

@@ -20,5 +20,6 @@ FROM scratch
 
 # GOPATH for scratch images is /
 COPY --from=builder /app/cmd/barista/config.yml /
+COPY --from=builder /app/db/migrations /db/migrations
 COPY --from=builder /bin/app /app
 CMD ["/app"]
