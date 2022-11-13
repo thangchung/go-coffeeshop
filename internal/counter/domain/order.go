@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/publisher"
 	events "github.com/thangchung/go-coffeeshop/pkg/event"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 )
@@ -39,8 +39,9 @@ func NewOrder(
 func CreateOrderFrom(
 	ctx context.Context,
 	request *gen.PlaceOrderRequest,
-	productDomainService ProductDomainService,
-	orderPublisher counterRabbitMQ.OrderPublisher,
+	productDomainSvc ProductDomainService,
+	baristaOrderPub publisher.Publisher,
+	kitchenOrderPub publisher.Publisher,
 ) (*Order, error) {
 	loyaltyMemberID, err := uuid.Parse(request.LoyaltyMemberId)
 	if err != nil {
@@ -53,7 +54,7 @@ func CreateOrderFrom(
 	numberOfKitchenItems := len(request.KitchenItems) > 0
 
 	if numberOfBaristaItems {
-		itemTypesRes, err := productDomainService.GetItemsByType(request, true)
+		itemTypesRes, err := productDomainSvc.GetItemsByType(request, true)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +67,15 @@ func CreateOrderFrom(
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), gen.Status_IN_PROGRESS, true)
 
-				err = publishBaristaOrderEvent(ctx, order.ID, lineItem.ID, lineItem.ItemType, orderPublisher, true)
+				err = publishBaristaOrderEvent(
+					ctx,
+					order.ID,
+					lineItem.ID,
+					lineItem.ItemType,
+					baristaOrderPub,
+					kitchenOrderPub,
+					true,
+				)
 
 				order.LineItems = append(order.LineItems, *lineItem)
 			}
@@ -78,7 +87,7 @@ func CreateOrderFrom(
 	}
 
 	if numberOfKitchenItems {
-		itemTypesRes, err := productDomainService.GetItemsByType(request, false)
+		itemTypesRes, err := productDomainSvc.GetItemsByType(request, false)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +100,15 @@ func CreateOrderFrom(
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), gen.Status_IN_PROGRESS, false)
 
-				err = publishBaristaOrderEvent(ctx, order.ID, lineItem.ID, lineItem.ItemType, orderPublisher, false)
+				err = publishBaristaOrderEvent(
+					ctx,
+					order.ID,
+					lineItem.ID,
+					lineItem.ItemType,
+					baristaOrderPub,
+					kitchenOrderPub,
+					false,
+				)
 
 				order.LineItems = append(order.LineItems, *lineItem)
 			}
@@ -110,7 +127,8 @@ func publishBaristaOrderEvent(
 	orderID uuid.UUID,
 	lineItemID uuid.UUID,
 	itemType gen.ItemType,
-	publisher counterRabbitMQ.OrderPublisher,
+	baristaOrderPub publisher.Publisher,
+	kitchenOrderPub publisher.Publisher,
 	isBarista bool,
 ) error {
 	if isBarista {
@@ -127,7 +145,7 @@ func publishBaristaOrderEvent(
 			return errors.Wrap(err, "json.Marshal - events.BaristaOrdered")
 		}
 
-		err = publisher.Publish(ctx, eventBytes, "text/plain")
+		err = baristaOrderPub.Publish(ctx, eventBytes, "text/plain")
 		if err != nil {
 			return errors.Wrap(err, "orderPublisher - Publish")
 		}
@@ -147,7 +165,7 @@ func publishBaristaOrderEvent(
 			return errors.Wrap(err, "json.Marshal - events.BaristaOrdered")
 		}
 
-		err = publisher.Publish(ctx, eventBytes, "text/plain")
+		err = kitchenOrderPub.Publish(ctx, eventBytes, "text/plain")
 		if err != nil {
 			return errors.Wrap(err, "orderPublisher - Publish")
 		}

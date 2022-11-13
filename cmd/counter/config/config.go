@@ -25,11 +25,7 @@ type (
 	}
 
 	RabbitMQ struct {
-		URL         string `env-required:"true" yaml:"url" env:"RABBITMQ_URL"`
-		Exchange    string `env-required:"true" yaml:"exchange" env:"RABBITMQ_Exchange"`
-		Queue       string `env-required:"true" yaml:"queue" env:"RABBITMQ_Queue"`
-		RoutingKey  string `env-required:"true" yaml:"routing_key" env:"RABBITMQ_RoutingKey"`
-		ConsumerTag string `env-required:"true" yaml:"consumer_tag" env:"RABBITMQ_ConsumerTag"`
+		URL string `env-required:"true" yaml:"url" env:"RABBITMQ_URL"`
 	}
 
 	ProductClient struct {

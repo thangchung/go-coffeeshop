@@ -7,12 +7,7 @@ http:
   port: 5002
 
 rabbit_mq:
-  url: amqp://guest:guest@172.22.174.138:5672/
-  exchange: orders-exchange
-  queue: orders-queue
-  routing_key: orders-routing-key
-  consumer_tag: orders-consumer
-  worker_pool_size: 24
+  url: amqp://guest:guest@172.25.33.104:5672/
 
 logger:
   log_level: 'debug'

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 
 	"github.com/golang/glog"
@@ -19,7 +18,7 @@ func main() {
 	mylog := mylogger.New(cfg.Level)
 
 	a := app.New(mylog, cfg)
-	if err = a.Run(context.Background()); err != nil {
+	if err = a.Run(); err != nil {
 		glog.Fatal(err)
 		os.Exit(1)
 	}

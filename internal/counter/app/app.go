@@ -8,8 +8,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/barista/eventhandlers"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
-	counterRabbitMQ "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/consumer"
+	counterPublisher "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecase/repo"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
@@ -35,8 +37,10 @@ func New(log *mylogger.Logger, cfg *config.Config) *App {
 	}
 }
 
-func (a *App) Run(ctx context.Context) error {
+func (a *App) Run() error {
 	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// PostgresDB
 	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
@@ -63,19 +67,65 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	defer conn.Close()
 
-	orderPublisher, err := counterRabbitMQ.NewOrderPublisher(amqpConn, a.cfg, a.logger)
+	baristaOrderPub, err := counterPublisher.NewPublisher(
+		amqpConn,
+		a.logger,
+		counterPublisher.ExchangeName("barista-order-exchange"),
+		counterPublisher.BindingKey("barista-order-routing-key"),
+		counterPublisher.MessageTypeName("barista-order-created"),
+	)
+	defer baristaOrderPub.CloseChan()
+
 	if err != nil {
-		return errors.Wrap(err, "counterRabbitMQ-NewOrderPublisher")
+		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
 	}
 
-	defer orderPublisher.CloseChan()
+	kitchenOrderPub, err := counterPublisher.NewPublisher(
+		amqpConn,
+		a.logger,
+		counterPublisher.ExchangeName("kitchen-order-exchange"),
+		counterPublisher.BindingKey("kitchen-order-routing-key"),
+		counterPublisher.MessageTypeName("kitchen-order-created"),
+	)
+	defer kitchenOrderPub.CloseChan()
+
+	if err != nil {
+		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
+	}
 
 	a.logger.Info("Order Publisher initialized")
 
-	var productDomainService domain.ProductDomainService = counterGrpc.NewProductServiceClient(ctx, conn)
+	var productDomainSvc domain.ProductDomainService = counterGrpc.NewProductServiceClient(ctx, conn)
 
 	// Use case
-	queryOrderFulfillmentUseCase := usecase.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
+	queryOrderFulfillmentUC := usecase.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
+
+	// event handlers.
+	handler := eventhandlers.NewBaristaOrderUpdatedEventHandler()
+
+	// consumers
+	consumer, err := consumer.NewConsumer(
+		amqpConn,
+		handler,
+		a.logger,
+		consumer.ExchangeName("counter-order-exchange"),
+		consumer.QueueName("counter-order-queue"),
+		consumer.BindingKey("counter-order-routing-key"),
+		consumer.ConsumerTag("counter-order-consumer"),
+		consumer.MessageTypeName("counter-order-updated"),
+	)
+
+	if err != nil {
+		a.logger.Fatal("app - Run - consumer.NewOrderConsumer: %s", err.Error())
+	}
+
+	go func() {
+		err = consumer.StartConsumer()
+		if err != nil {
+			a.logger.Error("StartConsumer: %v", err)
+			cancel()
+		}
+	}()
 
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
@@ -97,9 +147,10 @@ func (a *App) Run(ctx context.Context) error {
 		amqpConn,
 		a.cfg,
 		a.logger,
-		queryOrderFulfillmentUseCase,
-		productDomainService,
-		*orderPublisher,
+		queryOrderFulfillmentUC,
+		productDomainSvc,
+		*baristaOrderPub,
+		*kitchenOrderPub,
 	)
 
 	go func() {

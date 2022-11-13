@@ -7,9 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/features/orders/eventhandlers"
-	baristaRabbitMQ "github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq/consumer"
+	"github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq/publisher"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 )
@@ -41,21 +43,41 @@ func (a *App) Run() error {
 	}
 	defer amqpConn.Close()
 
-	handler := eventhandlers.NewBaristaOrderedEventHandler()
-	consumer, err := baristaRabbitMQ.NewOrderConsumer(amqpConn, handler, a.logger)
+	// publishers
+	counterOrderPub, err := publisher.NewPublisher(
+		amqpConn,
+		a.logger,
+		publisher.ExchangeName("counter-order-exchange"),
+		publisher.BindingKey("counter-order-routing-key"),
+		publisher.MessageTypeName("counter-order-updated"),
+	)
+	defer counterOrderPub.CloseChan()
 
 	if err != nil {
-		a.logger.Fatal("app - Run - baristaRabbitMQ.NewOrderConsumer: %s", err.Error())
+		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
+	}
+
+	// event handlers.
+	handler := eventhandlers.NewBaristaOrderedEventHandler(counterOrderPub)
+
+	// consumers
+	consumer, err := consumer.NewConsumer(
+		amqpConn,
+		handler,
+		a.logger,
+		consumer.ExchangeName("barista-order-exchange"),
+		consumer.QueueName("barista-order-queue"),
+		consumer.BindingKey("barista-order-routing-key"),
+		consumer.ConsumerTag("barista-order-consumer"),
+		consumer.MessageTypeName("barista-order-created"),
+	)
+
+	if err != nil {
+		a.logger.Fatal("app - Run - consumer.NewOrderConsumer: %s", err.Error())
 	}
 
 	go func() {
-		err := consumer.StartConsumer(
-			a.cfg.RabbitMQ.WorkerPoolSize,
-			a.cfg.RabbitMQ.Exchange,
-			a.cfg.RabbitMQ.Queue,
-			a.cfg.RabbitMQ.RoutingKey,
-			a.cfg.RabbitMQ.ConsumerTag,
-		)
+		err := consumer.StartConsumer()
 		if err != nil {
 			a.logger.Error("StartConsumer: %v", err)
 			cancel()
