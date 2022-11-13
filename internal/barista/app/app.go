@@ -2,18 +2,21 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/features/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq/consumer"
-	"github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 )
 
 type App struct {
@@ -21,6 +24,7 @@ type App struct {
 	cfg     *config.Config
 	network string
 	address string
+	handler eventhandlers.BaristaOrderedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -58,18 +62,16 @@ func (a *App) Run() error {
 	}
 
 	// event handlers.
-	handler := eventhandlers.NewBaristaOrderedEventHandler(counterOrderPub)
+	a.handler = eventhandlers.NewBaristaOrderedEventHandler(counterOrderPub)
 
 	// consumers
 	consumer, err := consumer.NewConsumer(
 		amqpConn,
-		handler,
 		a.logger,
 		consumer.ExchangeName("barista-order-exchange"),
 		consumer.QueueName("barista-order-queue"),
 		consumer.BindingKey("barista-order-routing-key"),
 		consumer.ConsumerTag("barista-order-consumer"),
-		consumer.MessageTypeName("barista-order-created"),
 	)
 
 	if err != nil {
@@ -77,7 +79,7 @@ func (a *App) Run() error {
 	}
 
 	go func() {
-		err := consumer.StartConsumer()
+		err := consumer.StartConsumer(a.worker)
 		if err != nil {
 			a.logger.Error("StartConsumer: %v", err)
 			cancel()
@@ -97,4 +99,40 @@ func (a *App) Run() error {
 	a.logger.Info("Start server at " + a.address + " ...")
 
 	return nil
+}
+
+func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
+	for delivery := range messages {
+		c.logger.Info("processDeliveries deliveryTag %v", delivery.DeliveryTag)
+		c.logger.Info("received %s", delivery.Type)
+
+		switch delivery.Type {
+		case "barista-order-created":
+			var payload event.BaristaOrdered
+			err := json.Unmarshal(delivery.Body, &payload)
+
+			if err != nil {
+				c.logger.LogError(err)
+			}
+
+			err = c.handler.Handle(ctx, &payload)
+
+			if err != nil {
+				if err = delivery.Reject(false); err != nil {
+					c.logger.Error("Err delivery.Reject: %v", err)
+				}
+
+				c.logger.Error("Failed to process delivery: %v", err)
+			} else {
+				err = delivery.Ack(false)
+				if err != nil {
+					c.logger.Error("Failed to acknowledge delivery: %v", err)
+				}
+			}
+		default:
+			c.logger.Info("default")
+		}
+	}
+
+	c.logger.Info("Deliveries channel closed")
 }

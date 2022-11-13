@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/thangchung/go-coffeeshop/internal/barista/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
@@ -31,6 +31,9 @@ func (h *DefaultBaristaOrderedEventHandler) Handle(ctx context.Context, e *event
 
 	delay := calculateDelay(e.ItemType)
 	time.Sleep(delay)
+
+	// todo: save to db
+	// ...
 
 	message := event.BaristaOrderUpdated{
 		OrderID:    e.OrderID,

@@ -2,12 +2,9 @@ package consumer
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/thangchung/go-coffeeshop/internal/barista/features/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/pkg/event"
 	log "github.com/thangchung/go-coffeeshop/pkg/logger"
 )
 
@@ -32,39 +29,35 @@ const (
 	_consumeNoLocal   = false
 	_consumeNoWait    = false
 
-	_exchangeName    = "orders-exchange"
-	_queueName       = "orders-queue"
-	_bindingKey      = "orders-routing-key"
-	_consumerTag     = "orders-consumer"
-	_messageTypeName = "ordered"
-	_workerPoolSize  = 24
+	_exchangeName   = "orders-exchange"
+	_queueName      = "orders-queue"
+	_bindingKey     = "orders-routing-key"
+	_consumerTag    = "orders-consumer"
+	_workerPoolSize = 24
 )
+
+type worker func(ctx context.Context, messages <-chan amqp.Delivery)
 
 type Consumer struct {
 	exchangeName, queueName, bindingKey, consumerTag string
-	messageTypeName                                  string
 	workerPoolSize                                   int
 	amqpConn                                         *amqp.Connection
 	logger                                           *log.Logger
-	handler                                          eventhandlers.BaristaOrderedEventHandler
 }
 
 func NewConsumer(
 	amqpConn *amqp.Connection,
-	handler eventhandlers.BaristaOrderedEventHandler,
 	logger *log.Logger,
 	opts ...Option,
 ) (*Consumer, error) {
 	sub := &Consumer{
-		amqpConn:        amqpConn,
-		logger:          logger,
-		handler:         handler,
-		exchangeName:    _exchangeName,
-		queueName:       _queueName,
-		bindingKey:      _bindingKey,
-		consumerTag:     _consumerTag,
-		messageTypeName: _messageTypeName,
-		workerPoolSize:  _workerPoolSize,
+		amqpConn:       amqpConn,
+		logger:         logger,
+		exchangeName:   _exchangeName,
+		queueName:      _queueName,
+		bindingKey:     _bindingKey,
+		consumerTag:    _consumerTag,
+		workerPoolSize: _workerPoolSize,
 	}
 
 	for _, opt := range opts {
@@ -142,43 +135,8 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 	return ch, nil
 }
 
-func (c *Consumer) worker(ctx context.Context, messages <-chan amqp.Delivery) {
-	for delivery := range messages {
-		c.logger.Info("processDeliveries deliveryTag% v", delivery.DeliveryTag)
-
-		switch delivery.Type {
-		case c.messageTypeName:
-			var payload event.BaristaOrdered
-			err := json.Unmarshal(delivery.Body, &payload)
-
-			if err != nil {
-				c.logger.LogError(err)
-			}
-
-			err = c.handler.Handle(ctx, &payload)
-
-			if err != nil {
-				if err = delivery.Reject(false); err != nil {
-					c.logger.Error("Err delivery.Reject: %v", err)
-				}
-
-				c.logger.Error("Failed to process delivery: %v", err)
-			} else {
-				err = delivery.Ack(false)
-				if err != nil {
-					c.logger.Error("Failed to acknowledge delivery: %v", err)
-				}
-			}
-		default:
-			c.logger.Info("default")
-		}
-	}
-
-	c.logger.Info("Deliveries channel closed")
-}
-
 // StartConsumer Start new rabbitmq consumer.
-func (c *Consumer) StartConsumer() error {
+func (c *Consumer) StartConsumer(fn worker) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -204,7 +162,7 @@ func (c *Consumer) StartConsumer() error {
 	forever := make(chan bool)
 
 	for i := 0; i < c.workerPoolSize; i++ {
-		go c.worker(ctx, deliveries)
+		go fn(ctx, deliveries)
 	}
 
 	chanErr := <-ch.NotifyClose(make(chan *amqp.Error))

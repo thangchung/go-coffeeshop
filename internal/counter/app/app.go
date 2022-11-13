@@ -2,21 +2,24 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 
 	"github.com/pkg/errors"
+	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/barista/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/repo"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
-	"github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/consumer"
-	counterPublisher "github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/publisher"
-	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
-	"github.com/thangchung/go-coffeeshop/internal/counter/usecase/repo"
+	"github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -26,6 +29,7 @@ type App struct {
 	cfg     *config.Config
 	network string
 	address string
+	handler eventhandlers.BaristaOrderUpdatedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -67,12 +71,12 @@ func (a *App) Run() error {
 	}
 	defer conn.Close()
 
-	baristaOrderPub, err := counterPublisher.NewPublisher(
+	baristaOrderPub, err := publisher.NewPublisher(
 		amqpConn,
 		a.logger,
-		counterPublisher.ExchangeName("barista-order-exchange"),
-		counterPublisher.BindingKey("barista-order-routing-key"),
-		counterPublisher.MessageTypeName("barista-order-created"),
+		publisher.ExchangeName("barista-order-exchange"),
+		publisher.BindingKey("barista-order-routing-key"),
+		publisher.MessageTypeName("barista-order-created"),
 	)
 	defer baristaOrderPub.CloseChan()
 
@@ -80,12 +84,12 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
 	}
 
-	kitchenOrderPub, err := counterPublisher.NewPublisher(
+	kitchenOrderPub, err := publisher.NewPublisher(
 		amqpConn,
 		a.logger,
-		counterPublisher.ExchangeName("kitchen-order-exchange"),
-		counterPublisher.BindingKey("kitchen-order-routing-key"),
-		counterPublisher.MessageTypeName("kitchen-order-created"),
+		publisher.ExchangeName("kitchen-order-exchange"),
+		publisher.BindingKey("kitchen-order-routing-key"),
+		publisher.MessageTypeName("kitchen-order-created"),
 	)
 	defer kitchenOrderPub.CloseChan()
 
@@ -98,21 +102,19 @@ func (a *App) Run() error {
 	var productDomainSvc domain.ProductDomainService = counterGrpc.NewProductServiceClient(ctx, conn)
 
 	// Use case
-	queryOrderFulfillmentUC := usecase.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
+	queryOrderFulfillmentUC := features.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
 
 	// event handlers.
-	handler := eventhandlers.NewBaristaOrderUpdatedEventHandler()
+	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler()
 
 	// consumers
 	consumer, err := consumer.NewConsumer(
 		amqpConn,
-		handler,
 		a.logger,
 		consumer.ExchangeName("counter-order-exchange"),
 		consumer.QueueName("counter-order-queue"),
 		consumer.BindingKey("counter-order-routing-key"),
 		consumer.ConsumerTag("counter-order-consumer"),
-		consumer.MessageTypeName("counter-order-updated"),
 	)
 
 	if err != nil {
@@ -120,7 +122,7 @@ func (a *App) Run() error {
 	}
 
 	go func() {
-		err = consumer.StartConsumer()
+		err = consumer.StartConsumer(a.worker)
 		if err != nil {
 			a.logger.Error("StartConsumer: %v", err)
 			cancel()
@@ -161,4 +163,40 @@ func (a *App) Run() error {
 	a.logger.Info("Start server at " + a.address + " ...")
 
 	return server.Serve(l)
+}
+
+func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
+	for delivery := range messages {
+		c.logger.Info("processDeliveries deliveryTag %v", delivery.DeliveryTag)
+		c.logger.Info("received %s", delivery.Type)
+
+		switch delivery.Type {
+		case "counter-order-updated":
+			var payload event.BaristaOrderUpdated
+			err := json.Unmarshal(delivery.Body, &payload)
+
+			if err != nil {
+				c.logger.LogError(err)
+			}
+
+			err = c.handler.Handle(ctx, &payload)
+
+			if err != nil {
+				if err = delivery.Reject(false); err != nil {
+					c.logger.Error("Err delivery.Reject: %v", err)
+				}
+
+				c.logger.Error("Failed to process delivery: %v", err)
+			} else {
+				err = delivery.Ack(false)
+				if err != nil {
+					c.logger.Error("Failed to acknowledge delivery: %v", err)
+				}
+			}
+		default:
+			c.logger.Info("default")
+		}
+	}
+
+	c.logger.Info("Deliveries channel closed")
 }

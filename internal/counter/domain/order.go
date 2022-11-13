@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
-	"github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/publisher"
 	events "github.com/thangchung/go-coffeeshop/pkg/event"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 )
 

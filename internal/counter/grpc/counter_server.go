@@ -8,9 +8,9 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/rabbitmq/publisher"
-	"github.com/thangchung/go-coffeeshop/internal/counter/usecase"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -22,7 +22,7 @@ type CounterServiceServerImpl struct {
 	amqpConn                *amqp.Connection
 	cfg                     *config.Config
 	productDomainSvc        domain.ProductDomainService
-	queryOrderFulfillmentUC usecase.QueryOrderFulfillmentUseCase
+	queryOrderFulfillmentUC features.QueryOrderFulfillmentUseCase
 	baristaOrderPub         publisher.Publisher
 	kitchenOrderPub         publisher.Publisher
 }
@@ -32,7 +32,7 @@ func NewCounterServiceServerGrpc(
 	amqpConn *amqp.Connection,
 	cfg *config.Config,
 	log *mylogger.Logger,
-	queryOrderFulfillmentUC usecase.QueryOrderFulfillmentUseCase,
+	queryOrderFulfillmentUC features.QueryOrderFulfillmentUseCase,
 	productDomainSvc domain.ProductDomainService,
 	baristaOrderPub publisher.Publisher,
 	kitchenOrderPub publisher.Publisher,

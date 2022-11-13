@@ -26,12 +26,6 @@ func ConsumerTag(consumerTag string) Option {
 	}
 }
 
-func MessageTypeName(messageTypeName string) Option {
-	return func(p *Consumer) {
-		p.messageTypeName = messageTypeName
-	}
-}
-
 func WorkerPoolSize(workerPoolSize int) Option {
 	return func(p *Consumer) {
 		p.workerPoolSize = workerPoolSize

@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	OrderTopic     = "orders_topic"
-	RetryTimes     = 5
-	BackOffSeconds = 2
+	_retryTimes     = 5
+	_backOffSeconds = 2
 )
 
 var ErrCannotConnectRabbitMQ = errors.New("cannot connect to rabbit")
@@ -33,14 +32,14 @@ func NewRabbitMQConn(rabbitMqURL string, logger *mylogger.Logger) (*amqp.Connect
 			break
 		}
 
-		if counts > RetryTimes {
+		if counts > _retryTimes {
 			logger.LogError(err)
 
 			return nil, ErrCannotConnectRabbitMQ
 		}
 
 		logger.Info("Backing off for 2 seconds...")
-		time.Sleep(BackOffSeconds * time.Second)
+		time.Sleep(_backOffSeconds * time.Second)
 
 		continue
 	}
