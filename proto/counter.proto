@@ -48,11 +48,12 @@ message OrderDto {
 }
 
 message LineItemDto {
-    common.ItemType item_type = 1;
-    string name = 2;
-    double price = 3;
-    common.Status item_status = 4;
-    bool is_barista_order = 5;
+    string id = 1;
+    common.ItemType item_type = 2;
+    string name = 3;
+    double price = 4;
+    common.Status item_status = 5;
+    bool is_barista_order = 6;
 }
 
 message PlaceOrderRequest {

@@ -8,7 +8,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
@@ -18,13 +17,14 @@ import (
 
 type CounterServiceServerImpl struct {
 	gen.UnimplementedCounterServiceServer
-	logger                  *mylogger.Logger
-	amqpConn                *amqp.Connection
-	cfg                     *config.Config
-	productDomainSvc        domain.ProductDomainService
-	queryOrderFulfillmentUC features.QueryOrderFulfillmentUseCase
-	baristaOrderPub         publisher.Publisher
-	kitchenOrderPub         publisher.Publisher
+	logger           *mylogger.Logger
+	amqpConn         *amqp.Connection
+	cfg              *config.Config
+	productDomainSvc domain.ProductDomainService
+	orderCommand     domain.OrderCommand
+	orderQuery       domain.OrderQuery
+	baristaOrderPub  publisher.Publisher
+	kitchenOrderPub  publisher.Publisher
 }
 
 func NewCounterServiceServerGrpc(
@@ -32,19 +32,21 @@ func NewCounterServiceServerGrpc(
 	amqpConn *amqp.Connection,
 	cfg *config.Config,
 	log *mylogger.Logger,
-	queryOrderFulfillmentUC features.QueryOrderFulfillmentUseCase,
+	orderCommand domain.OrderCommand,
+	orderQuery domain.OrderQuery,
 	productDomainSvc domain.ProductDomainService,
 	baristaOrderPub publisher.Publisher,
 	kitchenOrderPub publisher.Publisher,
 ) {
 	svc := CounterServiceServerImpl{
-		cfg:                     cfg,
-		logger:                  log,
-		amqpConn:                amqpConn,
-		queryOrderFulfillmentUC: queryOrderFulfillmentUC,
-		productDomainSvc:        productDomainSvc,
-		baristaOrderPub:         baristaOrderPub,
-		kitchenOrderPub:         kitchenOrderPub,
+		cfg:              cfg,
+		logger:           log,
+		amqpConn:         amqpConn,
+		orderCommand:     orderCommand,
+		orderQuery:       orderQuery,
+		productDomainSvc: productDomainSvc,
+		baristaOrderPub:  baristaOrderPub,
+		kitchenOrderPub:  kitchenOrderPub,
 	}
 
 	gen.RegisterCounterServiceServer(grpcServer, &svc)
@@ -60,7 +62,7 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(
 
 	res := gen.GetListOrderFulfillmentResponse{}
 
-	entities, err := g.queryOrderFulfillmentUC.GetListOrderFulfillment()
+	entities, err := g.orderQuery.GetAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("CounterServiceServerImpl - GetListOrderFulfillment - g.queryOrderFulfillmentUseCase.GetListOrderFulfillment: %w", err)
 	}
@@ -88,10 +90,31 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 		return nil, errors.Wrap(err, "PlaceOrder - domain.CreateOrderFrom")
 	}
 
-	// todo: save to database
-	// ...
+	// save to database
+	orderModel := &gen.OrderDto{
+		Id:              order.ID.String(),
+		Localtion:       order.Location,
+		LoyaltyMemberId: order.LoyaltyMemberID.String(),
+		OrderSource:     order.OrderSource,
+		OrderStatus:     order.OrderStatus,
+	}
 
-	g.logger.Debug("order created: %s", *order)
+	for _, item := range order.LineItems {
+		orderModel.LineItems = append(orderModel.LineItems, &gen.LineItemDto{
+			ItemType:       item.ItemType,
+			Name:           item.Name,
+			Price:          float64(item.Price),
+			ItemStatus:     item.ItemStatus,
+			IsBaristaOrder: item.IsBaristaOrder,
+		})
+	}
+
+	err = g.orderCommand.Create(ctx, orderModel)
+	if err != nil {
+		return nil, errors.Wrap(err, "PlaceOrder-g.orderCommand.Create")
+	}
+
+	g.logger.Debug("order created: %v", *order)
 
 	res := gen.PlaceOrderResponse{}
 

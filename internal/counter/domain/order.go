@@ -54,7 +54,7 @@ func CreateOrderFrom(
 	numberOfKitchenItems := len(request.KitchenItems) > 0
 
 	if numberOfBaristaItems {
-		itemTypesRes, err := productDomainSvc.GetItemsByType(request, true)
+		itemTypesRes, err := productDomainSvc.GetItemsByType(ctx, request, true)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func CreateOrderFrom(
 	}
 
 	if numberOfKitchenItems {
-		itemTypesRes, err := productDomainSvc.GetItemsByType(request, false)
+		itemTypesRes, err := productDomainSvc.GetItemsByType(ctx, request, false)
 		if err != nil {
 			return nil, err
 		}
@@ -120,6 +120,28 @@ func CreateOrderFrom(
 	}
 
 	return order, nil
+}
+
+func (o *Order) Apply(event *events.BaristaOrderUpdated) error {
+	if len(o.LineItems) == 0 {
+		return nil // we dont do anything
+	}
+
+	_, index, ok := lo.FindIndexOf(o.LineItems, func(i LineItem) bool {
+		return i.ItemType == event.ItemType
+	})
+
+	if !ok {
+		return errors.New("item not found")
+	}
+
+	o.LineItems[index].ItemStatus = gen.Status_FULFILLED
+
+	if checkFulfilledStatus(o.LineItems) {
+		o.OrderStatus = gen.Status_FULFILLED
+	}
+
+	return nil
 }
 
 func publishBaristaOrderEvent(
@@ -172,4 +194,14 @@ func publishBaristaOrderEvent(
 
 		return nil
 	}
+}
+
+func checkFulfilledStatus(lineItems []LineItem) bool {
+	for _, item := range lineItems {
+		if item.ItemStatus != gen.Status_FULFILLED {
+			return false
+		}
+	}
+
+	return true
 }

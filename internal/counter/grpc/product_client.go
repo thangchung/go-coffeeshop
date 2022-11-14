@@ -6,23 +6,28 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
 )
 
-type ProductServiceClient struct {
-	ctx  context.Context
+type productDomainService struct {
 	conn *grpc.ClientConn
 }
 
-func NewProductServiceClient(ctx context.Context, conn *grpc.ClientConn) *ProductServiceClient {
-	return &ProductServiceClient{
-		ctx:  ctx,
+var _ domain.ProductDomainService = (*productDomainService)(nil)
+
+func NewProductDomainService(conn *grpc.ClientConn) domain.ProductDomainService {
+	return &productDomainService{
 		conn: conn,
 	}
 }
 
-func (p *ProductServiceClient) GetItemsByType(request *gen.PlaceOrderRequest, isBarista bool) (*gen.GetItemsByTypeResponse, error) {
+func (p *productDomainService) GetItemsByType(
+	ctx context.Context,
+	request *gen.PlaceOrderRequest,
+	isBarista bool,
+) (*gen.GetItemsByTypeResponse, error) {
 	c := gen.NewProductServiceClient(p.conn)
 
 	itemTypes := ""
@@ -36,5 +41,5 @@ func (p *ProductServiceClient) GetItemsByType(request *gen.PlaceOrderRequest, is
 		}, "")
 	}
 
-	return c.GetItemsByType(p.ctx, &gen.GetItemsByTypeRequest{ItemTypes: strings.TrimLeft(itemTypes, ",")})
+	return c.GetItemsByType(ctx, &gen.GetItemsByTypeRequest{ItemTypes: strings.TrimLeft(itemTypes, ",")})
 }

@@ -10,15 +10,16 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/repo"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/command"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/query"
+	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/repo"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	rabConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -29,7 +30,7 @@ type App struct {
 	cfg     *config.Config
 	network string
 	address string
-	handler eventhandlers.BaristaOrderUpdatedEventHandler
+	handler domain.BaristaOrderUpdatedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -51,6 +52,8 @@ func (a *App) Run() error {
 	if err != nil {
 		a.logger.Fatal("app - Run - postgres.NewPostgres: %s", err.Error())
 
+		cancel()
+
 		return err
 	}
 	defer pg.Close()
@@ -60,6 +63,8 @@ func (a *App) Run() error {
 	if err != nil {
 		a.logger.Fatal("app - Run - rabbitmq.NewRabbitMQConn: %s", err.Error())
 
+		cancel()
+
 		return err
 	}
 	defer amqpConn.Close()
@@ -67,6 +72,8 @@ func (a *App) Run() error {
 	// gRPC Client
 	conn, err := grpc.Dial(a.cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
+		cancel()
+
 		return err
 	}
 	defer conn.Close()
@@ -81,6 +88,8 @@ func (a *App) Run() error {
 	defer baristaOrderPub.CloseChan()
 
 	if err != nil {
+		cancel()
+
 		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
 	}
 
@@ -94,27 +103,31 @@ func (a *App) Run() error {
 	defer kitchenOrderPub.CloseChan()
 
 	if err != nil {
+		cancel()
+
 		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
 	}
 
 	a.logger.Info("Order Publisher initialized")
 
-	var productDomainSvc domain.ProductDomainService = counterGrpc.NewProductServiceClient(ctx, conn)
+	// domain service
+	productDomainSvc := counterGrpc.NewProductDomainService(conn)
 
-	// Use case
-	queryOrderFulfillmentUC := features.NewQueryOrderFulfillmentUseCase(ctx, repo.NewQueryOrderFulfillmentRepo(ctx, pg))
+	// CQRS components
+	orderQuery := query.NewOrderQuery(ctx, repo.NewOrderRepo(pg))
+	orderCommand := command.NewOrderCommand(ctx, repo.NewOrderRepo(pg))
 
 	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler()
+	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(repo.NewOrderRepo(pg))
 
 	// consumers
-	consumer, err := consumer.NewConsumer(
+	consumer, err := rabConsumer.NewConsumer(
 		amqpConn,
 		a.logger,
-		consumer.ExchangeName("counter-order-exchange"),
-		consumer.QueueName("counter-order-queue"),
-		consumer.BindingKey("counter-order-routing-key"),
-		consumer.ConsumerTag("counter-order-consumer"),
+		rabConsumer.ExchangeName("counter-order-exchange"),
+		rabConsumer.QueueName("counter-order-queue"),
+		rabConsumer.BindingKey("counter-order-routing-key"),
+		rabConsumer.ConsumerTag("counter-order-consumer"),
 	)
 
 	if err != nil {
@@ -149,7 +162,8 @@ func (a *App) Run() error {
 		amqpConn,
 		a.cfg,
 		a.logger,
-		queryOrderFulfillmentUC,
+		orderCommand,
+		orderQuery,
 		productDomainSvc,
 		*baristaOrderPub,
 		*kitchenOrderPub,

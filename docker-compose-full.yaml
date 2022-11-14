@@ -68,6 +68,7 @@ services:
     image: go-coffeeshop-counter
     environment:
       APP_NAME: 'counter-service in docker'
+      IN_DOCKER: "true"
       PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       PRODUCT_CLIENT_URL: product:5001
@@ -88,6 +89,7 @@ services:
     image: go-coffeeshop-barista
     environment:
       APP_NAME: 'barista-service in docker'
+      IN_DOCKER: "true"
       PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:

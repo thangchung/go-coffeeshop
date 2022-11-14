@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -18,8 +19,11 @@ import (
 )
 
 const (
-	_defaultAttempts   = 5
-	_defaultTimeout    = time.Second
+	_defaultAttempts = 5
+	_defaultTimeout  = time.Second
+)
+
+var (
 	_migrationFilePath = "db/migrations"
 )
 
@@ -38,12 +42,19 @@ func init() {
 	)
 
 	for attempts > 0 {
-		cur, _ := os.Getwd()
-		dir := filepath.Dir(cur + "/../../..")
+		inDocker, ok := os.LookupEnv("IN_DOCKER")
+		if !ok || len(inDocker) == 0 {
+			glog.Fatalf("migrate: environment variable not declared: IN_DOCKER")
+		}
 
-		glog.Infoln(fmt.Sprintf("file://%s", dir))
+		dir := fmt.Sprintf("file://%s", _migrationFilePath)
+		if dockered, _ := strconv.ParseBool(inDocker); !dockered {
+			cur, _ := os.Getwd()
+			dir = fmt.Sprintf("file://%s/%s", filepath.Dir(cur+"/../../.."), _migrationFilePath)
+		}
 
-		m, err = migrate.New(fmt.Sprintf("file://%s/%s", dir, _migrationFilePath), databaseURL)
+		glog.Infoln(dir)
+		m, err = migrate.New(dir, databaseURL)
 		if err == nil {
 			break
 		}
