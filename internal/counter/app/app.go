@@ -10,9 +10,7 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/command"
 	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/query"
 	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/repo"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
@@ -110,15 +108,14 @@ func (a *App) Run() error {
 
 	a.logger.Info("Order Publisher initialized")
 
+	// repository
+	orderRepo := repo.NewOrderRepo(pg)
+
 	// domain service
 	productDomainSvc := counterGrpc.NewProductDomainService(conn)
 
-	// CQRS components
-	orderQuery := query.NewOrderQuery(ctx, repo.NewOrderRepo(pg))
-	orderCommand := command.NewOrderCommand(ctx, repo.NewOrderRepo(pg))
-
 	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(repo.NewOrderRepo(pg))
+	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
 
 	// consumers
 	consumer, err := rabConsumer.NewConsumer(
@@ -162,8 +159,7 @@ func (a *App) Run() error {
 		amqpConn,
 		a.cfg,
 		a.logger,
-		orderCommand,
-		orderQuery,
+		orderRepo,
 		productDomainSvc,
 		*baristaOrderPub,
 		*kitchenOrderPub,

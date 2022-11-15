@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/georgysavva/scany/pgxscan"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	"github.com/thangchung/go-coffeeshop/internal/counter/domain/model"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
@@ -24,11 +27,50 @@ func NewOrderRepo(pg *postgres.Postgres) domain.OrderRepo {
 	return &orderRepo{pg: pg}
 }
 
-func (d *orderRepo) GetAll(ctx context.Context) ([]gen.OrderDto, error) {
+func (d *orderRepo) getAllFunc() (string, error) {
 	sql, _, err := d.pg.Builder.
-		Select("orders.id").
-		From(`"order".orders`).Join(`"order".line_items USING(id)`).
+		Select(`
+			o.id as "o.id", 
+			order_source as "o.order_source", 
+			loyalty_member_id as "o.loyalty_member_id", 
+			order_status as "o.order_status",
+			l.id as "l.id",
+			item_type as "l.item_type",
+			name as "l.name",
+			price as "l.price",
+			item_status as "l.item_status",
+			is_barista_order as "l.is_barista_order",
+			o.id as "l.order_id"
+			`).
+		From(`"order".orders o`).Join(`"order".line_items l ON o.id = l.order_id`).
+		Limit(_defaultEntityCap).
 		ToSql()
+
+	return sql, err
+}
+
+func (d *orderRepo) getByIDFunc(id uuid.UUID) (string, []interface{}, error) {
+	return d.pg.Builder.
+		Select(`
+			o.id as "o.id", 
+			order_source as "o.order_source", 
+			loyalty_member_id as "o.loyalty_member_id", 
+			order_status as "o.order_status",
+			l.id as "l.id",
+			item_type as "l.item_type",
+			name as "l.name",
+			price as "l.price",
+			item_status as "l.item_status",
+			is_barista_order as "l.is_barista_order",
+			o.id as "l.order_id"
+		`).
+		From(`"order".orders o`).Join(`"order".line_items l ON o.id = l.order_id`).
+		Where("o.id = ?", id).
+		ToSql()
+}
+
+func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
+	sql, err := d.getAllFunc()
 	if err != nil {
 		return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Builder: %w", err)
 	}
@@ -39,83 +81,102 @@ func (d *orderRepo) GetAll(ctx context.Context) ([]gen.OrderDto, error) {
 	}
 	defer rows.Close()
 
-	entities := make([]gen.OrderDto, 0, _defaultEntityCap)
+	var results []model.OrderListResult
+	if err := pgxscan.ScanAll(&results, rows); err != nil {
+		return nil, fmt.Errorf("NewOrderRepo-GetAll-pgxscan.ScanAll: %w", err)
+	}
 
-	for rows.Next() {
-		o := gen.OrderDto{}
+	uniqueResults := lo.UniqBy(results, func(x model.OrderListResult) string {
+		return x.Order.ID.String()
+	})
+	orders := lo.Map(uniqueResults, func(x model.OrderListResult, _ int) *domain.Order {
+		return x.Order
+	})
+	lineItems := lo.Map(results, func(x model.OrderListResult, _ int) *domain.LineItem {
+		return x.LineItem
+	})
+	entities := make([]*domain.Order, 0, _defaultEntityCap)
 
-		err = rows.Scan(&o.Id, &o.OrderSource, &o.LoyaltyMemberId, &o.OrderStatus)
-		if err != nil {
-			return nil, fmt.Errorf("NewOrderRepo-GetAll-rows.Scan: %w", err)
+	for _, o := range orders {
+		order := &domain.Order{
+			ID:              o.ID,
+			OrderSource:     o.OrderSource,
+			LoyaltyMemberID: o.LoyaltyMemberID,
+			OrderStatus:     o.OrderStatus,
 		}
 
-		entities = append(entities, o)
+		filters := lo.Filter(lineItems, func(x *domain.LineItem, _ int) bool {
+			return x.OrderID.ID() == o.ID.ID()
+		})
+
+		for _, ol := range filters {
+			order.LineItems = append(order.LineItems, &domain.LineItem{
+				ID:             ol.ID,
+				ItemType:       ol.ItemType,
+				Name:           ol.Name,
+				Price:          ol.Price,
+				ItemStatus:     ol.ItemStatus,
+				IsBaristaOrder: ol.IsBaristaOrder,
+			})
+		}
+
+		entities = append(entities, order)
 	}
 
 	return entities, nil
 }
 
-func (d *orderRepo) GetOrderByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
-	sql, args, err := d.pg.Builder.
-		Select("o.id, order_source, loyalty_member_id, order_status").
-		From(`"order".orders o`).Join(`"order".line_items l ON o.id = l.order_id`).
-		Where("o.id = ?", id).
-		GroupBy("o.id").
-		ToSql()
+func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
+	sql, args, err := d.getByIDFunc(id)
 	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Builder: %w", err)
+		return nil, fmt.Errorf("NewOrderRepo-GetByID-r.Builder: %w", err)
 	}
 
 	rows, err := d.pg.Pool.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("NewOrderRepo-GetByID-r.Pool.Query: %w", err)
 	}
 	defer rows.Close()
 
-	orders := make([]domain.Order, 0, _defaultEntityCap)
-
-	for rows.Next() {
-		o := domain.Order{}
-
-		err = rows.Scan(&o.ID, &o.OrderSource, &o.LoyaltyMemberID, &o.OrderStatus)
-		if err != nil {
-			return nil, fmt.Errorf("NewOrderRepo-GetAll-rows.Scan: %w", err)
-		}
-
-		orders = append(orders, o)
+	var results []model.OrderListResult
+	if err := pgxscan.ScanAll(&results, rows); err != nil {
+		return nil, fmt.Errorf("NewOrderRepo-GetByID-pgxscan.ScanAll: %w", err)
 	}
 
-	// continue to load order items
-	order := orders[0]
-	if len(orders) >= 1 {
-		sql, args, err := d.pg.Builder.
-			Select("id, item_type, name, price, item_status, is_barista_order").
-			From(`"order".line_items`).
-			Where("order_id = ?", order.ID).
-			ToSql()
-		if err != nil {
-			return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Builder: %w", err)
-		}
+	uniqueResults := lo.UniqBy(results, func(x model.OrderListResult) string {
+		return x.Order.ID.String()
+	})
 
-		rows, err = d.pg.Pool.Query(ctx, sql, args...)
-		if err != nil {
-			return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Pool.Query: %w", err)
-		}
-		defer rows.Close()
+	orders := lo.Map(uniqueResults, func(x model.OrderListResult, _ int) *domain.Order {
+		return x.Order
+	})
+	lineItems := lo.Map(results, func(x model.OrderListResult, _ int) *domain.LineItem {
+		return x.LineItem
+	})
 
-		for rows.Next() {
-			o := domain.LineItem{}
-
-			err = rows.Scan(&o.ID, &o.ItemType, &o.Name, &o.Price, &o.ItemStatus, &o.IsBaristaOrder)
-			if err != nil {
-				return nil, fmt.Errorf("NewOrderRepo-GetAll-rows.Scan: %w", err)
-			}
-
-			order.LineItems = append(order.LineItems, o)
-		}
+	if len(orders) == 0 {
+		return nil, nil
 	}
 
-	return &order, nil
+	order := &domain.Order{
+		ID:              orders[0].ID,
+		OrderSource:     orders[0].OrderSource,
+		LoyaltyMemberID: orders[0].LoyaltyMemberID,
+		OrderStatus:     orders[0].OrderStatus,
+	}
+
+	for _, ol := range lineItems {
+		order.LineItems = append(order.LineItems, &domain.LineItem{
+			ID:             ol.ID,
+			ItemType:       ol.ItemType,
+			Name:           ol.Name,
+			Price:          ol.Price,
+			ItemStatus:     ol.ItemStatus,
+			IsBaristaOrder: ol.IsBaristaOrder,
+		})
+	}
+
+	return order, nil
 }
 
 func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error {

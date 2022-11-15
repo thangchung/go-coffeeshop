@@ -22,7 +22,7 @@ func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) domain.Baris
 }
 
 func (h *baristaOrderUpdatedEventHandler) Handle(ctx context.Context, e *event.BaristaOrderUpdated) error {
-	order, err := h.orderRepo.GetOrderByID(ctx, e.OrderID)
+	order, err := h.orderRepo.GetByID(ctx, e.OrderID)
 	if err != nil {
 		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-h.orderRepo.GetOrderByID(ctx, e.OrderID): %w", err)
 	}

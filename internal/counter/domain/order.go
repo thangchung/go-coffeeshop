@@ -13,12 +13,12 @@ import (
 )
 
 type Order struct {
-	ID              uuid.UUID
-	OrderSource     gen.OrderSource
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     gen.Status
-	Location        gen.Location
-	LineItems       []LineItem
+	ID              uuid.UUID       `json:"id" db:"id"`
+	OrderSource     gen.OrderSource `json:"order_source" db:"order_source"`
+	LoyaltyMemberID uuid.UUID       `json:"loyalty_member_id" db:"loyalty_member_id"`
+	OrderStatus     gen.Status      `json:"order_status" db:"order_status"`
+	Location        gen.Location    `json:"location" db:"location"`
+	LineItems       []*LineItem
 }
 
 func NewOrder(
@@ -77,7 +77,7 @@ func CreateOrderFrom(
 					true,
 				)
 
-				order.LineItems = append(order.LineItems, *lineItem)
+				order.LineItems = append(order.LineItems, lineItem)
 			}
 		})
 
@@ -110,7 +110,7 @@ func CreateOrderFrom(
 					false,
 				)
 
-				order.LineItems = append(order.LineItems, *lineItem)
+				order.LineItems = append(order.LineItems, lineItem)
 			}
 		})
 
@@ -127,7 +127,7 @@ func (o *Order) Apply(event *events.BaristaOrderUpdated) error {
 		return nil // we dont do anything
 	}
 
-	_, index, ok := lo.FindIndexOf(o.LineItems, func(i LineItem) bool {
+	_, index, ok := lo.FindIndexOf(o.LineItems, func(i *LineItem) bool {
 		return i.ItemType == event.ItemType
 	})
 
@@ -196,7 +196,7 @@ func publishBaristaOrderEvent(
 	}
 }
 
-func checkFulfilledStatus(lineItems []LineItem) bool {
+func checkFulfilledStatus(lineItems []*LineItem) bool {
 	for _, item := range lineItems {
 		if item.ItemStatus != gen.Status_FULFILLED {
 			return false

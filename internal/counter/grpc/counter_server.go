@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
@@ -21,8 +22,7 @@ type CounterServiceServerImpl struct {
 	amqpConn         *amqp.Connection
 	cfg              *config.Config
 	productDomainSvc domain.ProductDomainService
-	orderCommand     domain.OrderCommand
-	orderQuery       domain.OrderQuery
+	orderRepo        domain.OrderRepo
 	baristaOrderPub  publisher.Publisher
 	kitchenOrderPub  publisher.Publisher
 }
@@ -32,8 +32,7 @@ func NewCounterServiceServerGrpc(
 	amqpConn *amqp.Connection,
 	cfg *config.Config,
 	log *mylogger.Logger,
-	orderCommand domain.OrderCommand,
-	orderQuery domain.OrderQuery,
+	orderRepo domain.OrderRepo,
 	productDomainSvc domain.ProductDomainService,
 	baristaOrderPub publisher.Publisher,
 	kitchenOrderPub publisher.Publisher,
@@ -42,8 +41,7 @@ func NewCounterServiceServerGrpc(
 		cfg:              cfg,
 		logger:           log,
 		amqpConn:         amqpConn,
-		orderCommand:     orderCommand,
-		orderQuery:       orderQuery,
+		orderRepo:        orderRepo,
 		productDomainSvc: productDomainSvc,
 		baristaOrderPub:  baristaOrderPub,
 		kitchenOrderPub:  kitchenOrderPub,
@@ -62,14 +60,27 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(
 
 	res := gen.GetListOrderFulfillmentResponse{}
 
-	entities, err := g.orderQuery.GetAll(ctx)
+	entities, err := g.orderRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("CounterServiceServerImpl - GetListOrderFulfillment - g.queryOrderFulfillmentUseCase.GetListOrderFulfillment: %w", err)
+		return nil, fmt.Errorf("CounterServiceServerImpl-GetListOrderFulfillment-g.orderRepo.GetAll: %w", err)
 	}
 
 	for _, entity := range entities {
 		res.Orders = append(res.Orders, &gen.OrderDto{
-			Id: entity.Id,
+			Id:              entity.ID.String(),
+			OrderSource:     entity.OrderSource,
+			OrderStatus:     entity.OrderStatus,
+			Localtion:       entity.Location,
+			LoyaltyMemberId: entity.LoyaltyMemberID.String(),
+			LineItems: lo.Map(entity.LineItems, func(item *domain.LineItem, _ int) *gen.LineItemDto {
+				return &gen.LineItemDto{
+					ItemType:       item.ItemType,
+					Name:           item.Name,
+					Price:          float64(item.Price),
+					ItemStatus:     item.ItemStatus,
+					IsBaristaOrder: item.IsBaristaOrder,
+				}
+			}),
 		})
 	}
 
@@ -82,12 +93,10 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 ) (*gen.PlaceOrderResponse, error) {
 	g.logger.Info("POST: PlaceOrder")
 
-	g.logger.Debug("request: %s", request)
-
 	// add order
 	order, err := domain.CreateOrderFrom(ctx, request, g.productDomainSvc, g.baristaOrderPub, g.kitchenOrderPub)
 	if err != nil {
-		return nil, errors.Wrap(err, "PlaceOrder - domain.CreateOrderFrom")
+		return nil, errors.Wrap(err, "CounterServiceServerImpl-PlaceOrder-domain.CreateOrderFrom")
 	}
 
 	// save to database
@@ -109,7 +118,7 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 		})
 	}
 
-	err = g.orderCommand.Create(ctx, orderModel)
+	err = g.orderRepo.Create(ctx, orderModel)
 	if err != nil {
 		return nil, errors.Wrap(err, "PlaceOrder-g.orderCommand.Create")
 	}
