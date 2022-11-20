@@ -100,5 +100,23 @@ services:
     networks:
       - coffeeshop-network
 
+  kitchen:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-kitchen
+    image: go-coffeeshop-kitchen
+    environment:
+      APP_NAME: 'kitchen-service in docker'
+      IN_DOCKER: "true"
+      PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - coffeeshop-network
+
 networks:
   coffeeshop-network:

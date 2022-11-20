@@ -10,8 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
-	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
-	"github.com/thangchung/go-coffeeshop/internal/barista/features/orders/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/features/orders/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
@@ -24,7 +24,7 @@ type App struct {
 	cfg     *config.Config
 	network string
 	address string
-	handler eventhandlers.BaristaOrderedEventHandler
+	handler eventhandlers.KitchenOrderedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -45,7 +45,7 @@ func (a *App) Run() error {
 	if err != nil {
 		cancel()
 
-		a.logger.Fatal("app - Run - rabbitmq.NewRabbitMQConn: %s", err.Error())
+		a.logger.Fatal("App-Run-rabbitmq.NewRabbitMQConn: %s", err.Error())
 	}
 	defer amqpConn.Close()
 
@@ -66,20 +66,20 @@ func (a *App) Run() error {
 	}
 
 	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderedEventHandler(counterOrderPub)
+	a.handler = eventhandlers.NewKitchenOrderedEventHandler(counterOrderPub)
 
 	// consumers
 	consumer, err := consumer.NewConsumer(
 		amqpConn,
 		a.logger,
-		consumer.ExchangeName("barista-order-exchange"),
-		consumer.QueueName("barista-order-queue"),
-		consumer.BindingKey("barista-order-routing-key"),
-		consumer.ConsumerTag("barista-order-consumer"),
+		consumer.ExchangeName("kitchen-order-exchange"),
+		consumer.QueueName("kitchen-order-queue"),
+		consumer.BindingKey("kitchen-order-routing-key"),
+		consumer.ConsumerTag("kitchen-order-consumer"),
 	)
 
 	if err != nil {
-		a.logger.Fatal("app - Run - consumer.NewOrderConsumer: %s", err.Error())
+		a.logger.Fatal("App-Run-consumer.NewOrderConsumer: %s", err.Error())
 		cancel()
 	}
 
@@ -112,8 +112,8 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 		c.logger.Info("received %s", delivery.Type)
 
 		switch delivery.Type {
-		case "barista-order-created":
-			var payload event.BaristaOrdered
+		case "kitchen-order-created":
+			var payload event.KitchenOrdered
 			err := json.Unmarshal(delivery.Body, &payload)
 
 			if err != nil {

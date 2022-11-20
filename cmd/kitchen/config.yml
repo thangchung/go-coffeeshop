@@ -1,14 +1,14 @@
 app:
-  name: 'barista-service'
+  name: 'kitchen-service'
   version: '1.0.0'
 
 http:
   host: '0.0.0.0'
-  port: 5002
+  port: 5004
 
 rabbit_mq:
   url: amqp://guest:guest@172.28.255.101:5672/
 
 logger:
   log_level: 'debug'
-  rollbar_env: 'barista-service'
+  rollbar_env: 'kitchen-service'

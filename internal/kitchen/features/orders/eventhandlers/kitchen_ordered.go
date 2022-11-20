@@ -12,21 +12,23 @@ import (
 	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
-type BaristaOrderedEventHandler interface {
-	Handle(context.Context, *event.BaristaOrdered) error
+type KitchenOrderedEventHandler interface {
+	Handle(context.Context, *event.KitchenOrdered) error
 }
 
-type DefaultBaristaOrderedEventHandler struct {
+var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
+
+type kitchenOrderedEventHandler struct {
 	counterPub *publisher.Publisher
 }
 
-func NewBaristaOrderedEventHandler(counterPub *publisher.Publisher) *DefaultBaristaOrderedEventHandler {
-	return &DefaultBaristaOrderedEventHandler{
+func NewKitchenOrderedEventHandler(counterPub *publisher.Publisher) KitchenOrderedEventHandler {
+	return &kitchenOrderedEventHandler{
 		counterPub: counterPub,
 	}
 }
 
-func (h *DefaultBaristaOrderedEventHandler) Handle(ctx context.Context, e *event.BaristaOrdered) error {
+func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.KitchenOrdered) error {
 	fmt.Println(e)
 
 	delay := calculateDelay(e.ItemType)
@@ -35,7 +37,7 @@ func (h *DefaultBaristaOrderedEventHandler) Handle(ctx context.Context, e *event
 	// todo: save to db
 	// ...
 
-	message := event.BaristaOrderUpdated{
+	message := event.KitchenOrderUpdated{
 		OrderID:    e.OrderID,
 		ItemLineID: e.ItemLineID,
 		Name:       e.ItemType.String(),
@@ -47,11 +49,11 @@ func (h *DefaultBaristaOrderedEventHandler) Handle(ctx context.Context, e *event
 
 	eventBytes, err := json.Marshal(message)
 	if err != nil {
-		return errors.Wrap(err, "json.Marshal - events.BaristaOrderUpdated")
+		return errors.Wrap(err, "json.Marshal-events.KitchenOrderUpdated")
 	}
 
 	if err := h.counterPub.Publish(ctx, eventBytes, "text/plain"); err != nil {
-		return errors.Wrap(err, "BaristaOrderedEventHandler - Publish")
+		return errors.Wrap(err, "KitchenOrderedEventHandler-Publish")
 	}
 
 	return nil
@@ -59,16 +61,14 @@ func (h *DefaultBaristaOrderedEventHandler) Handle(ctx context.Context, e *event
 
 func calculateDelay(itemType gen.ItemType) time.Duration {
 	switch itemType {
-	case gen.ItemType_COFFEE_BLACK:
-		return 5 * time.Second
-	case gen.ItemType_COFFEE_WITH_ROOM:
-		return 5 * time.Second
-	case gen.ItemType_ESPRESSO:
+	case gen.ItemType_CROISSANT:
 		return 7 * time.Second
-	case gen.ItemType_ESPRESSO_DOUBLE:
+	case gen.ItemType_CROISSANT_CHOCOLATE:
 		return 7 * time.Second
-	case gen.ItemType_CAPPUCCINO:
-		return 10 * time.Second
+	case gen.ItemType_CAKEPOP:
+		return 5 * time.Second
+	case gen.ItemType_MUFFIN:
+		return 7 * time.Second
 	default:
 		return 3 * time.Second
 	}

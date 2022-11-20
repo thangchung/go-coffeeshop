@@ -27,16 +27,15 @@ run-barista:
 	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/barista
 .PHONY: run-barista
 
+run-kitchen:
+	cd cmd/kitchen && go mod tidy && go mod download && \
+	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/kitchen
+.PHONY: run-kitchen
+
 run-proxy:
 	cd cmd/proxy && go mod tidy && go mod download && \
 	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/proxy
 .PHONY: run-proxy
-
-run-migrator:
-	cd cmd/counter && dbmate up &>/dev/null && cd -
-	cd cmd/barista && dbmate up &>/dev/null && cd -
-	cd cmd/kitchen && dbmate up &>/dev/null && cd -
-.PHONY: run-migrator
 
 test:
 	go test -v main.go
