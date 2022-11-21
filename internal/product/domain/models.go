@@ -1,4 +1,4 @@
-package entity
+package domain
 
 type ItemTypeDto struct {
 	Name string `json:"name"`
