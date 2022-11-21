@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/domain"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
@@ -19,11 +20,13 @@ type KitchenOrderedEventHandler interface {
 var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
 
 type kitchenOrderedEventHandler struct {
+	repo       domain.OrderRepo
 	counterPub *publisher.Publisher
 }
 
-func NewKitchenOrderedEventHandler(counterPub *publisher.Publisher) KitchenOrderedEventHandler {
+func NewKitchenOrderedEventHandler(repo domain.OrderRepo, counterPub *publisher.Publisher) KitchenOrderedEventHandler {
 	return &kitchenOrderedEventHandler{
+		repo:       repo,
 		counterPub: counterPub,
 	}
 }
@@ -31,11 +34,25 @@ func NewKitchenOrderedEventHandler(counterPub *publisher.Publisher) KitchenOrder
 func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.KitchenOrdered) error {
 	fmt.Println(e)
 
+	timeIn := time.Now()
+
 	delay := calculateDelay(e.ItemType)
 	time.Sleep(delay)
 
-	// todo: save to db
-	// ...
+	timeUp := time.Now().Add(delay)
+
+	err := h.repo.Create(ctx, &domain.KitchenOrder{
+		ID:       e.ItemLineID,
+		OrderID:  e.OrderID,
+		ItemType: e.ItemType,
+		ItemName: e.ItemType.String(),
+		TimeUp:   timeUp,
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "kitchenOrderedEventHandler-h.repo.Create")
+	}
 
 	message := event.KitchenOrderUpdated{
 		OrderID:    e.OrderID,
@@ -43,8 +60,8 @@ func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.Kitche
 		Name:       e.ItemType.String(),
 		ItemType:   e.ItemType,
 		MadeBy:     "teesee",
-		TimeIn:     time.Now(),
-		TimeUp:     time.Now().Add(5 * time.Minute),
+		TimeIn:     timeIn,
+		TimeUp:     timeUp,
 	}
 
 	eventBytes, err := json.Marshal(message)

@@ -117,6 +117,7 @@ func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 				Price:          ol.Price,
 				ItemStatus:     ol.ItemStatus,
 				IsBaristaOrder: ol.IsBaristaOrder,
+				OrderID:        ol.OrderID,
 			})
 		}
 

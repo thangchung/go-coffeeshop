@@ -155,7 +155,6 @@ func publishBaristaOrderEvent(
 ) error {
 	if isBarista {
 		// todo: refactor to event domain dispatcher
-		// ...
 		event := events.BaristaOrdered{
 			OrderID:    orderID,
 			ItemLineID: lineItemID,
@@ -175,7 +174,6 @@ func publishBaristaOrderEvent(
 		return nil
 	} else {
 		// todo: refactor to event domain dispatcher
-		// ...
 		event := events.KitchenOrdered{
 			OrderID:    orderID,
 			ItemLineID: lineItemID,

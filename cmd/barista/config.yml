@@ -6,8 +6,12 @@ http:
   host: '0.0.0.0'
   port: 5002
 
+postgres:
+  pool_max: 2
+  url: postgres://postgres:P@ssw0rd@172.28.240.102:5432/postgres?sslmode=disable
+
 rabbit_mq:
-  url: amqp://guest:guest@172.28.255.101:5672/
+  url: amqp://guest:guest@172.28.240.102:5672/
 
 logger:
   log_level: 'debug'

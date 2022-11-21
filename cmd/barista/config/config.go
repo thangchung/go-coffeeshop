@@ -14,7 +14,13 @@ type (
 		configs.App  `yaml:"app"`
 		configs.HTTP `yaml:"http"`
 		configs.Log  `yaml:"logger"`
+		PG           `yaml:"postgres"`
 		RabbitMQ     `yaml:"rabbit_mq"`
+	}
+
+	PG struct {
+		PoolMax int    `env-required:"true" yaml:"pool_max" env:"PG_POOL_MAX"`
+		URL     string `env-required:"true" yaml:"url" env:"PG_URL"`
 	}
 
 	RabbitMQ struct {

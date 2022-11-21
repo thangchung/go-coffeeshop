@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/thangchung/go-coffeeshop/internal/barista/domain"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
@@ -19,11 +20,13 @@ type BaristaOrderedEventHandler interface {
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
 
 type baristaOrderedEventHandler struct {
+	repo       domain.OrderRepo
 	counterPub *publisher.Publisher
 }
 
-func NewBaristaOrderedEventHandler(counterPub *publisher.Publisher) BaristaOrderedEventHandler {
+func NewBaristaOrderedEventHandler(repo domain.OrderRepo, counterPub *publisher.Publisher) BaristaOrderedEventHandler {
 	return &baristaOrderedEventHandler{
+		repo:       repo,
 		counterPub: counterPub,
 	}
 }
@@ -31,11 +34,24 @@ func NewBaristaOrderedEventHandler(counterPub *publisher.Publisher) BaristaOrder
 func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e *event.BaristaOrdered) error {
 	fmt.Println(e)
 
+	timeIn := time.Now()
+
 	delay := calculateDelay(e.ItemType)
 	time.Sleep(delay)
 
-	// todo: save to db
-	// ...
+	timeUp := time.Now().Add(delay)
+
+	err := h.repo.Create(ctx, &domain.BaristaOrder{
+		ID:       e.ItemLineID,
+		ItemType: e.ItemType,
+		ItemName: e.ItemType.String(),
+		TimeUp:   timeUp,
+		Created:  time.Now(),
+		Updated:  time.Now(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "baristaOrderedEventHandler-h.repo.Create")
+	}
 
 	message := event.BaristaOrderUpdated{
 		OrderID:    e.OrderID,
@@ -43,8 +59,8 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e *event.Barist
 		Name:       e.ItemType.String(),
 		ItemType:   e.ItemType,
 		MadeBy:     "teesee",
-		TimeIn:     time.Now(),
-		TimeUp:     time.Now().Add(5 * time.Minute),
+		TimeIn:     timeIn,
+		TimeUp:     timeUp,
 	}
 
 	eventBytes, err := json.Marshal(message)

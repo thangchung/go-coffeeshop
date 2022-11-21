@@ -74,6 +74,7 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(
 			LoyaltyMemberId: entity.LoyaltyMemberID.String(),
 			LineItems: lo.Map(entity.LineItems, func(item *domain.LineItem, _ int) *gen.LineItemDto {
 				return &gen.LineItemDto{
+					Id:             item.ID.String(),
 					ItemType:       item.ItemType,
 					Name:           item.Name,
 					Price:          float64(item.Price),

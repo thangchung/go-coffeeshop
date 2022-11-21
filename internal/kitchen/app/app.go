@@ -12,8 +12,10 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/features/orders/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/features/orders/repo"
 	"github.com/thangchung/go-coffeeshop/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
@@ -41,6 +43,18 @@ func (a *App) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// PostgresDB
+	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
+	if err != nil {
+		a.logger.Fatal("app - Run - postgres.NewPostgres: %s", err.Error())
+
+		cancel()
+
+		return err
+	}
+	defer pg.Close()
+
+	// rabbitmq
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL, a.logger)
 	if err != nil {
 		cancel()
@@ -65,8 +79,11 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
 
+	// repository
+	orderRepo := repo.NewOrderRepo(pg)
+
 	// event handlers.
-	a.handler = eventhandlers.NewKitchenOrderedEventHandler(counterOrderPub)
+	a.handler = eventhandlers.NewKitchenOrderedEventHandler(orderRepo, counterOrderPub)
 
 	// consumers
 	consumer, err := consumer.NewConsumer(
