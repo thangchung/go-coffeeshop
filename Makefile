@@ -37,6 +37,11 @@ run-proxy:
 	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/proxy
 .PHONY: run-proxy
 
+run-web:
+	cd cmd/web && go mod tidy && go mod download && \
+	CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/web
+.PHONY: run-web
+
 test:
 	go test -v main.go
 
