@@ -118,5 +118,19 @@ services:
     networks:
       - coffeeshop-network
 
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-web
+    image: go-coffeeshop-web
+    environment:
+      REVERSE_PROXY_URL: http://localhost:5000
+    ports:
+      - 8080:8080
+    depends_on:
+      - proxy
+    networks:
+      - coffeeshop-network
+
 networks:
   coffeeshop-network:

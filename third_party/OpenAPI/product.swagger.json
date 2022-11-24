@@ -140,6 +140,9 @@
         "price": {
           "type": "number",
           "format": "double"
+        },
+        "image": {
+          "type": "string"
         }
       }
     },

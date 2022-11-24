@@ -130,6 +130,9 @@
     "counterapiLineItemDto": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "itemType": {
           "$ref": "#/definitions/commonItemType"
         },

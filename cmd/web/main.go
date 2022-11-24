@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/golang/glog"
 	"github.com/labstack/echo/v4"
 )
 
@@ -30,13 +31,25 @@ func getFileSystem(useOS bool) http.FileSystem {
 	return http.FS(fsys)
 }
 
+type UrlModel struct {
+	Url string `json:"url"`
+}
+
 func main() {
+	reverseProxyURL, ok := os.LookupEnv("REVERSE_PROXY_URL")
+	if !ok || reverseProxyURL == "" {
+		glog.Fatalf("web: environment variable not declared: reverseProxyURL")
+	}
+
 	e := echo.New()
 
 	useOS := len(os.Args) > 1 && os.Args[1] == "live"
 	assetHandler := http.FileServer(getFileSystem(useOS))
 	e.GET("/", echo.WrapHandler(assetHandler))
 	e.GET("/static/*", echo.WrapHandler(http.StripPrefix("/static/", assetHandler)))
+	e.GET("/reverse-proxy-url", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, UrlModel{Url: reverseProxyURL})
+	})
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

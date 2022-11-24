@@ -53,4 +53,5 @@ message ItemTypeDto {
   string name = 1;
   int32 type = 2;
   double price = 3;
+  string image = 4;
 }
