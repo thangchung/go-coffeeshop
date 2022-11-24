@@ -7,6 +7,10 @@ Other version can be found at:
 - [.NET CoffeeShop with Microservices approach](https://github.com/thangchung/coffeeshop-on-nomad)
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
 
+## CoffeeShop - Choreography Saga
+
+![](docs/coffeeshop-flow.svg)
+
 ## Services
 
 No. | Service | URI
