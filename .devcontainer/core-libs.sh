@@ -19,13 +19,13 @@ sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
 sudo rm ./cni-plugins.tgz
 
 echo "Installing Consul..."
-sudo apt-get install consul=1.12.2-1 -y
+sudo apt-get install consul -y
 
 echo "Installing Nomad..."
-sudo apt-get install nomad=1.3.1-1 -y
+sudo apt-get install nomad -y
 
-# echo "Installing Vault..."
-# sudo apt-get install vault=1.11.0-1 -y
+echo "Installing Vault..."
+sudo apt-get install vault -y
 
 # # configuring environment
 # sudo -H -u root nomad -autocomplete-install
