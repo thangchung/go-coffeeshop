@@ -17,24 +17,68 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func newGateway(ctx context.Context, productConn *grpc.ClientConn, counterConn *grpc.ClientConn, opts []gwruntime.ServeMuxOption) (http.Handler, error) {
+func newGateway(
+	ctx context.Context,
+	cfg *config.Config,
+	opts []gwruntime.ServeMuxOption,
+) (http.Handler, error) {
+	productEndpoint := fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort)
+	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
+
+	// productConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
+	// if err != nil {
+	// 	logger.Fatal("%s", err)
+	// }
+
+	// go func() {
+	// 	<-ctx.Done()
+
+	// 	if err = productConn.Close(); err != nil {
+	// 		glog.Errorf("Failed to close a product client connection to the gRPC server: %v", err)
+	// 	}
+	// }()
+
+	// counterConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort))
+	// if err != nil {
+	// 	logger.Fatal("%s", err)
+	// }
+
+	// go func() {
+	// 	<-ctx.Done()
+
+	// 	if err = counterConn.Close(); err != nil {
+	// 		glog.Errorf("Failed to close a counter client connection to the gRPC server: %v", err)
+	// 	}
+	// }()
+
 	mux := gwruntime.NewServeMux(opts...)
+	dialOpts := []grpc.DialOption{grpc.WithInsecure()}
 
-	for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
-		gen.RegisterProductServiceHandler,
-	} {
-		if err := f(ctx, mux, productConn); err != nil {
-			return nil, err
-		}
+	err := gen.RegisterProductServiceHandlerFromEndpoint(ctx, mux, productEndpoint, dialOpts)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
-		gen.RegisterCounterServiceHandler,
-	} {
-		if err := f(ctx, mux, counterConn); err != nil {
-			return nil, err
-		}
+	err = gen.RegisterCounterServiceHandlerFromEndpoint(ctx, mux, counterEndpoint, dialOpts)
+	if err != nil {
+		return nil, err
 	}
+
+	// for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
+	// 	gen.RegisterProductServiceHandler,
+	// } {
+	// 	if err := f(ctx, mux, productConn); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+
+	// for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
+	// 	gen.RegisterCounterServiceHandler,
+	// } {
+	// 	if err := f(ctx, mux, counterConn); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	return mux, nil
 }
@@ -110,35 +154,9 @@ func main() {
 	logger := mylog.New(cfg.Log.Level)
 	logger.Info("Init %s %s\n", cfg.Name, cfg.Version)
 
-	productConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
-	if err != nil {
-		logger.Fatal("%s", err)
-	}
-
-	go func() {
-		<-ctx.Done()
-
-		if err = productConn.Close(); err != nil {
-			glog.Errorf("Failed to close a product client connection to the gRPC server: %v", err)
-		}
-	}()
-
-	counterConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort))
-	if err != nil {
-		logger.Fatal("%s", err)
-	}
-
-	go func() {
-		<-ctx.Done()
-
-		if err = counterConn.Close(); err != nil {
-			glog.Errorf("Failed to close a counter client connection to the gRPC server: %v", err)
-		}
-	}()
-
 	mux := http.NewServeMux()
 
-	gw, err := newGateway(ctx, productConn, counterConn, nil)
+	gw, err := newGateway(ctx, cfg, nil)
 	if err != nil {
 		logger.Fatal("%s", err)
 	}
