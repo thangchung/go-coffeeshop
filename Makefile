@@ -14,7 +14,7 @@ build-proxy:
 
 run-product:
 	cd cmd/product && go mod tidy && go mod download && \
-	CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/product
+	CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/product
 .PHONY: run-product
 
 run-counter:

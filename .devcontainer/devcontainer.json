@@ -1,7 +1,7 @@
 {
     "name": "go-coffeeshop",
     "build": {
-        "dockerfile": "../docker/Dockerfile-dev",
+        "dockerfile": "Dockerfile-dev",
         "args": {
             "VARIANT": "ubuntu-22.04"
         }
@@ -101,7 +101,9 @@
         "casualjim.gotemplate",
         "davidanson.vscode-markdownlint",
         "cweijan.vscode-mysql-client2",
-        "bierner.markdown-mermaid"
+        "bierner.markdown-mermaid",
+        "hashicorp.hcl",
+        "fredwangwang.vscode-hcl-format"
     ],
     "postCreateCommand": "go version",
     "features": {
@@ -109,7 +111,8 @@
             "version": "1.19"
         },
         "ghcr.io/devcontainers/features/docker-in-docker:1": {
-            "version": "latest"
-        }
+            "moby": false
+        },
+        "ghcr.io/devcontainers/features/terraform:1": {}
     }
 }

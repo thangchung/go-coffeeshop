@@ -1,0 +1,35 @@
+@host = http://localhost
+
+###
+GET {{host}}/api/v1/api/item-types HTTP/1.1
+content-type: application/json
+
+###
+GET {{host}}/api/v1/api/items-by-types/COFFEE_WITH_ROOM,MUFFIN HTTP/1.1
+content-type: application/json
+
+###
+GET {{host}}/api/v1/fulfillment-orders HTTP/1.1
+content-type: application/json
+
+###
+POST {{host}}/api/v1/api/orders HTTP/1.1
+content-type: application/json
+
+{
+  "commandType": 0,
+  "orderSource": 0,
+  "location": 0,
+  "loyaltyMemberId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "baristaItems": [
+    {
+      "itemType": {{$randomInt 0 5}}
+    }
+  ],
+  "kitchenItems": [
+    {
+      "itemType": {{$randomInt 6 9}}
+    }
+  ],
+  "timestamp": "2022-07-04T11:38:00.210Z"
+}

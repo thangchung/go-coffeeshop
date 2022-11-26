@@ -27,3 +27,6 @@ test_report*
 go.work
 
 *.env
+
+.terraform
+*tfstate*

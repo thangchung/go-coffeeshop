@@ -125,6 +125,7 @@ services:
     image: go-coffeeshop-web
     environment:
       REVERSE_PROXY_URL: http://localhost:5000
+      WEB_PORT: 8888
     ports:
       - 8080:8080
     depends_on:
