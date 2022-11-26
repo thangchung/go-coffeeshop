@@ -102,7 +102,8 @@
         "davidanson.vscode-markdownlint",
         "cweijan.vscode-mysql-client2",
         "bierner.markdown-mermaid",
-        "hashicorp.hcl"
+        "hashicorp.hcl",
+        "fredwangwang.vscode-hcl-format"
     ],
     "postCreateCommand": "go version",
     "features": {

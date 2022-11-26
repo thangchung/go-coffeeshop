@@ -16,39 +16,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func newProductGateway(
+func newGateway(
 	ctx context.Context,
 	cfg *config.Config,
 	opts []gwruntime.ServeMuxOption,
 ) (http.Handler, error) {
 	productEndpoint := fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort)
 	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
-
-	// productConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
-	// if err != nil {
-	// 	logger.Fatal("%s", err)
-	// }
-
-	// go func() {
-	// 	<-ctx.Done()
-
-	// 	if err = productConn.Close(); err != nil {
-	// 		glog.Errorf("Failed to close a product client connection to the gRPC server: %v", err)
-	// 	}
-	// }()
-
-	// counterConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort))
-	// if err != nil {
-	// 	logger.Fatal("%s", err)
-	// }
-
-	// go func() {
-	// 	<-ctx.Done()
-
-	// 	if err = counterConn.Close(); err != nil {
-	// 		glog.Errorf("Failed to close a counter client connection to the gRPC server: %v", err)
-	// 	}
-	// }()
 
 	mux := gwruntime.NewServeMux(opts...)
 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -63,65 +37,8 @@ func newProductGateway(
 		return nil, err
 	}
 
-	// for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
-	// 	gen.RegisterProductServiceHandler,
-	// } {
-	// 	if err := f(ctx, mux, productConn); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
-	// for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
-	// 	gen.RegisterCounterServiceHandler,
-	// } {
-	// 	if err := f(ctx, mux, counterConn); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
 	return mux, nil
 }
-
-// func newCounterGateway(
-// 	ctx context.Context,
-// 	cfg *config.Config,
-// 	opts []gwruntime.ServeMuxOption,
-// ) (http.Handler, error) {
-// 	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
-
-// 	mux := gwruntime.NewServeMux(opts...)
-// 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-
-// 	err := gen.RegisterCounterServiceHandlerFromEndpoint(ctx, mux, counterEndpoint, dialOpts)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return mux, nil
-// }
-
-// func dial(ctx context.Context, network, addr string) (*grpc.ClientConn, error) {
-// 	switch network {
-// 	case "tcp":
-// 		return dialTCP(ctx, addr)
-// 	case "unix":
-// 		return dialUnix(ctx, addr)
-// 	default:
-// 		return nil, fmt.Errorf("unsupported network type %q", network)
-// 	}
-// }
-
-// func dialTCP(ctx context.Context, addr string) (*grpc.ClientConn, error) {
-// 	return grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-// }
-
-// func dialUnix(ctx context.Context, addr string) (*grpc.ClientConn, error) {
-// 	d := func(ctx context.Context, addr string) (net.Conn, error) {
-// 		return (&net.Dialer{}).DialContext(ctx, "unix", addr)
-// 	}
-
-// 	return grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(d))
-// }
 
 func allowCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -173,18 +90,12 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	productGW, err := newProductGateway(ctx, cfg, nil)
+	gw, err := newGateway(ctx, cfg, nil)
 	if err != nil {
 		logger.Fatal("%s", err)
 	}
 
-	// counterGW, err := newCounterGateway(ctx, cfg, nil)
-	// if err != nil {
-	// 	logger.Fatal("%s", err)
-	// }
-
-	// mux.Handle("/", counterGW)
-	mux.Handle("/", productGW)
+	mux.Handle("/", gw)
 
 	s := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
