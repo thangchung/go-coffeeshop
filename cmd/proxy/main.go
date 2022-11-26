@@ -22,6 +22,7 @@ func newProductGateway(
 	opts []gwruntime.ServeMuxOption,
 ) (http.Handler, error) {
 	productEndpoint := fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort)
+	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
 
 	// productConn, err := dial(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ProductHost, cfg.ProductPort))
 	// if err != nil {
@@ -57,6 +58,11 @@ func newProductGateway(
 		return nil, err
 	}
 
+	err = gen.RegisterCounterServiceHandlerFromEndpoint(ctx, mux, counterEndpoint, dialOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	// for _, f := range []func(context.Context, *gwruntime.ServeMux, *grpc.ClientConn) error{
 	// 	gen.RegisterProductServiceHandler,
 	// } {
@@ -76,23 +82,23 @@ func newProductGateway(
 	return mux, nil
 }
 
-func newCounterGateway(
-	ctx context.Context,
-	cfg *config.Config,
-	opts []gwruntime.ServeMuxOption,
-) (http.Handler, error) {
-	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
+// func newCounterGateway(
+// 	ctx context.Context,
+// 	cfg *config.Config,
+// 	opts []gwruntime.ServeMuxOption,
+// ) (http.Handler, error) {
+// 	counterEndpoint := fmt.Sprintf("%s:%d", cfg.CounterHost, cfg.CounterPort)
 
-	mux := gwruntime.NewServeMux(opts...)
-	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+// 	mux := gwruntime.NewServeMux(opts...)
+// 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
-	err := gen.RegisterCounterServiceHandlerFromEndpoint(ctx, mux, counterEndpoint, dialOpts)
-	if err != nil {
-		return nil, err
-	}
+// 	err := gen.RegisterCounterServiceHandlerFromEndpoint(ctx, mux, counterEndpoint, dialOpts)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return mux, nil
-}
+// 	return mux, nil
+// }
 
 // func dial(ctx context.Context, network, addr string) (*grpc.ClientConn, error) {
 // 	switch network {
@@ -172,13 +178,13 @@ func main() {
 		logger.Fatal("%s", err)
 	}
 
-	counterGW, err := newCounterGateway(ctx, cfg, nil)
-	if err != nil {
-		logger.Fatal("%s", err)
-	}
+	// counterGW, err := newCounterGateway(ctx, cfg, nil)
+	// if err != nil {
+	// 	logger.Fatal("%s", err)
+	// }
 
-	mux.Handle("/product-api", productGW)
-	mux.Handle("/counter-api", counterGW)
+	// mux.Handle("/", counterGW)
+	mux.Handle("/", productGW)
 
 	s := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
