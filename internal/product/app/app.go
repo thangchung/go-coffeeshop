@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/thangchung/go-coffeeshop/cmd/product/config"
@@ -23,12 +24,14 @@ func New(log *mylogger.Logger, cfg *config.Config) *App {
 		logger:  log,
 		cfg:     cfg,
 		network: "tcp",
-		address: "0.0.0.0:5001",
+		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
 	}
 }
 
-func (a *App) Run(ctx context.Context) error {
+func (a *App) Run() error {
 	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
+
+	ctx, _ := context.WithCancel(context.Background())
 
 	// Repository
 	repo := productRepo.NewOrderRepo()
@@ -36,6 +39,8 @@ func (a *App) Run(ctx context.Context) error {
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
 	if err != nil {
+		a.logger.Fatal("app-Run-net.Listener: %s", err.Error())
+
 		return err
 	}
 

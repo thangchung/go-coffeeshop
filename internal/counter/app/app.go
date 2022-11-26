@@ -128,7 +128,7 @@ func (a *App) Run() error {
 	)
 
 	if err != nil {
-		a.logger.Fatal("app - Run - consumer.NewOrderConsumer: %s", err.Error())
+		a.logger.Fatal("app-Run-consumer.NewOrderConsumer: %s", err.Error())
 	}
 
 	go func() {
@@ -142,7 +142,7 @@ func (a *App) Run() error {
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
 	if err != nil {
-		a.logger.Fatal("app - Run - net.Listener: %s", err.Error())
+		a.logger.Fatal("app-Run-net.Listener: %s", err.Error())
 
 		return err
 	}
