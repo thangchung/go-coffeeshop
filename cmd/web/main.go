@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -41,6 +42,11 @@ func main() {
 		glog.Fatalf("web: environment variable not declared: reverseProxyURL")
 	}
 
+	webPort, ok := os.LookupEnv("WEB_PORT")
+	if !ok || webPort == "" {
+		glog.Fatalf("web: environment variable not declared: webPort")
+	}
+
 	e := echo.New()
 
 	useOS := len(os.Args) > 1 && os.Args[1] == "live"
@@ -51,5 +57,5 @@ func main() {
 		return c.JSON(http.StatusOK, UrlModel{Url: reverseProxyURL})
 	})
 
-	e.Logger.Fatal(e.Start(":8080"))
+	e.Logger.Fatal(e.Start(fmt.Sprintf(":%v", webPort)))
 }
