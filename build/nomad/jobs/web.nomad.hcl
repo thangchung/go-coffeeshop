@@ -53,7 +53,7 @@ job "web" {
         command = "bash"
         args = [
           "-c",
-          "cd local/repo && git checkout feat/nomad-consul-tf && cd cmd/web && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/web"
+          "cd local/repo/cmd/web && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/web"
         ]
       }
 

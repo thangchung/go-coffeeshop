@@ -38,7 +38,7 @@ job "product-api" {
         command = "bash"
         args = [
           "-c",
-          "cd local/repo && git checkout feat/nomad-consul-tf && cd cmd/product && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/product"
+          "cd local/repo/cmd/product && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/product"
         ]
       }
 

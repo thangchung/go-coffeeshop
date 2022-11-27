@@ -9,7 +9,7 @@ Other version can be found at:
 
 ## CoffeeShop - Choreography Saga
 
-![](docs/coffeeshop-flow.svg)
+![](docs/coffeeshop.svg)
 
 ## Services
 
@@ -47,6 +47,12 @@ Enjoy!!!
 ### Order list screen
 
 ![order_list_screen](docs/order_list_screen.png)
+
+## HashiCorp stack deployment
+
+![](docs/coffeeshop_hashicorp.svg)
+
+The details of how to run it can be find at [deployment with Nomad, Consult Connect and Vault](build/README.md).
 
 ## Debug Apps
 

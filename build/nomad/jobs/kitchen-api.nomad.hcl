@@ -34,7 +34,7 @@ job "kitchen-api" {
         command = "bash"
         args = [
           "-c",
-          "cd local/repo && git checkout feat/nomad-consul-tf && cd cmd/kitchen && go mod tidy && go mod download && CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/kitchen"
+          "cd local/repo/cmd/kitchen && go mod tidy && go mod download && CGO_ENABLED=0 go run -tags migrate github.com/thangchung/go-coffeeshop/cmd/kitchen"
         ]
       }
 

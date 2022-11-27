@@ -59,7 +59,7 @@ job "grpc-gw" {
         command = "bash"
         args = [
           "-c",
-          "cd local/repo && git checkout feat/nomad-consul-tf && cd cmd/proxy && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/proxy"
+          "cd local/repo/cmd/proxy && go mod tidy && go mod download && CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/proxy"
         ]
       }
 
