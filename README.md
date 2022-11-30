@@ -1,11 +1,35 @@
 # go-coffeeshop
 
-The coffeeshop with golang
+A coffee shop application with event-driven microservices has been written in Golang. Nomad, Consul Connect, Vault, and Terraform for deployment
 
 Other version can be found at:
 
 - [.NET CoffeeShop with Microservices approach](https://github.com/thangchung/coffeeshop-on-nomad)
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
+
+## Technical stack
+- Backend building blocks
+  - [grpc-ecosystem/grpc-gateway/v2](https://github.com/grpc-ecosystem/grpc-gateway)
+  - [labstack/echo/v4](https://github.com/labstack/echo)
+  - [rabbitmq/amqp091-go](https://github.com/rabbitmq/amqp091-go)
+  - [jackc/pgx/v4](https://github.com/jackc/pgx)
+  - [Masterminds/squirrel](https://github.com/Masterminds/squirrel)
+  - [georgysavva/scany](https://github.com/georgysavva/scany)
+  - [golang-migrate/migrate/v4](https://github.com/golang-migrate/migrate)
+  - Utils
+    - [ilyakaznacheev/cleanenv](https://github.com/ilyakaznacheev/cleanenv)
+    - [sirupsen/logrus](https://github.com/sirupsen/logrus)
+    - [samber/lo](https://github.com/samber/lo)
+    - golang/glog
+    - google/uuid
+    - google.golang.org/genproto
+    - google.golang.org/grpc
+    - google.golang.org/protobuf
+- Infrastructure
+  - Postgres, RabbitMQ
+  - Hashicorp Nomad, Consul (Connect), Vault, Terraform
+  - docker and docker-compose
+  - devcontainer for reproducible development environment
 
 ## CoffeeShop - Choreography Saga
 
@@ -62,6 +86,18 @@ The details of how to run it can be find at [deployment with Nomad, Consult Conn
 
 [Development project trouble shooting](https://github.com/thangchung/go-coffeeshop/wiki#trouble-shooting)
 
+## Roadmap
+
+- Enhance project structure with DDD patterns
+- Add testing
+- Add and integrate with observability libs and tools
+- Add user identity management (authentication and authorization)
+- Add resiliency
+
 ## Credits
 
+- [project-layout](https://github.com/golang-standards/project-layout)
+- [repository-structure](https://peter.bourgon.org/go-best-practices-2016/#repository-structure)
+- [go-build-template](https://github.com/thockin/go-build-template)
+- [go-clean-template](https://github.com/evrone/go-clean-template)
 - [emsifa/tailwind-pos](https://github.com/emsifa/tailwind-pos)
