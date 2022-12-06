@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type CounterServiceServerImpl struct {
+type counterGRPCServer struct {
 	gen.UnimplementedCounterServiceServer
 	logger           *mylogger.Logger
 	amqpConn         *amqp.Connection
@@ -27,7 +27,9 @@ type CounterServiceServerImpl struct {
 	kitchenOrderPub  publisher.Publisher
 }
 
-func NewCounterServiceServerGrpc(
+var _ gen.CounterServiceServer = (*counterGRPCServer)(nil)
+
+func NewGRPCCounterServer(
 	grpcServer *grpc.Server,
 	amqpConn *amqp.Connection,
 	cfg *config.Config,
@@ -37,7 +39,7 @@ func NewCounterServiceServerGrpc(
 	baristaOrderPub publisher.Publisher,
 	kitchenOrderPub publisher.Publisher,
 ) {
-	svc := CounterServiceServerImpl{
+	svc := counterGRPCServer{
 		cfg:              cfg,
 		logger:           log,
 		amqpConn:         amqpConn,
@@ -52,7 +54,7 @@ func NewCounterServiceServerGrpc(
 	reflection.Register(grpcServer)
 }
 
-func (g *CounterServiceServerImpl) GetListOrderFulfillment(
+func (g *counterGRPCServer) GetListOrderFulfillment(
 	ctx context.Context,
 	request *gen.GetListOrderFulfillmentRequest,
 ) (*gen.GetListOrderFulfillmentResponse, error) {
@@ -62,7 +64,7 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(
 
 	entities, err := g.orderRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("CounterServiceServerImpl-GetListOrderFulfillment-g.orderRepo.GetAll: %w", err)
+		return nil, fmt.Errorf("counterGRPCServer-GetListOrderFulfillment-g.orderRepo.GetAll: %w", err)
 	}
 
 	for _, entity := range entities {
@@ -88,7 +90,7 @@ func (g *CounterServiceServerImpl) GetListOrderFulfillment(
 	return &res, nil
 }
 
-func (g *CounterServiceServerImpl) PlaceOrder(
+func (g *counterGRPCServer) PlaceOrder(
 	ctx context.Context,
 	request *gen.PlaceOrderRequest,
 ) (*gen.PlaceOrderResponse, error) {
@@ -97,7 +99,7 @@ func (g *CounterServiceServerImpl) PlaceOrder(
 	// add order
 	order, err := domain.CreateOrderFrom(ctx, request, g.productDomainSvc, g.baristaOrderPub, g.kitchenOrderPub)
 	if err != nil {
-		return nil, errors.Wrap(err, "CounterServiceServerImpl-PlaceOrder-domain.CreateOrderFrom")
+		return nil, errors.Wrap(err, "counterGRPCServer-PlaceOrder-domain.CreateOrderFrom")
 	}
 
 	// save to database

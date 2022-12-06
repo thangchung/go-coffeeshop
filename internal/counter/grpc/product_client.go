@@ -11,19 +11,19 @@ import (
 	"google.golang.org/grpc"
 )
 
-type productDomainService struct {
+type productGRPCClient struct {
 	conn *grpc.ClientConn
 }
 
-var _ domain.ProductDomainService = (*productDomainService)(nil)
+var _ domain.ProductDomainService = (*productGRPCClient)(nil)
 
-func NewProductDomainService(conn *grpc.ClientConn) domain.ProductDomainService {
-	return &productDomainService{
+func NewGRPCProductClient(conn *grpc.ClientConn) domain.ProductDomainService {
+	return &productGRPCClient{
 		conn: conn,
 	}
 }
 
-func (p *productDomainService) GetItemsByType(
+func (p *productGRPCClient) GetItemsByType(
 	ctx context.Context,
 	request *gen.PlaceOrderRequest,
 	isBarista bool,

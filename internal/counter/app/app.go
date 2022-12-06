@@ -112,7 +112,7 @@ func (a *App) Run() error {
 	orderRepo := repo.NewOrderRepo(pg)
 
 	// domain service
-	productDomainSvc := counterGrpc.NewProductDomainService(conn)
+	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
 
 	// event handlers.
 	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
@@ -154,7 +154,7 @@ func (a *App) Run() error {
 	}()
 
 	server := grpc.NewServer()
-	counterGrpc.NewCounterServiceServerGrpc(
+	counterGrpc.NewGRPCCounterServer(
 		server,
 		amqpConn,
 		a.cfg,

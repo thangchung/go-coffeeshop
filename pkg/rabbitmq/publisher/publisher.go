@@ -79,7 +79,7 @@ func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string
 			MessageId:    uuid.New().String(),
 			Timestamp:    time.Now(),
 			Body:         body,
-			Type:         p.messageTypeName, //"barista.ordered",
+			Type:         p.messageTypeName,
 		},
 	); err != nil {
 		return errors.Wrap(err, "ch.Publish")
