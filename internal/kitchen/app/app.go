@@ -43,7 +43,7 @@ func (a *App) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// PostgresDB
+	// postgresdb.
 	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
 	if err != nil {
 		a.logger.Fatal("app - Run - postgres.NewPostgres: %s", err.Error())
@@ -54,7 +54,7 @@ func (a *App) Run() error {
 	}
 	defer pg.Close()
 
-	// rabbitmq
+	// rabbitmq.
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL, a.logger)
 	if err != nil {
 		cancel()
@@ -79,13 +79,13 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
 
-	// repository
+	// repository.
 	orderRepo := repo.NewOrderRepo(pg)
 
 	// event handlers.
-	a.handler = eventhandlers.NewKitchenOrderedEventHandler(orderRepo, counterOrderPub)
+	a.handler = eventhandlers.NewKitchenOrderedEventHandler(orderRepo, counterOrderPub, a.logger)
 
-	// consumers
+	// consumers.
 	consumer, err := consumer.NewConsumer(
 		amqpConn,
 		a.logger,

@@ -4,18 +4,17 @@ import (
 	"context"
 
 	"github.com/thangchung/go-coffeeshop/internal/product/domain"
-	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
-var _ domain.ProductRepo = (*productRepo)(nil)
+var _ domain.ProductRepo = (*productInMemRepo)(nil)
 
-type productRepo struct {
-	itemTypes map[string]gen.ItemTypeDto
+type productInMemRepo struct {
+	itemTypes map[string]*domain.ItemTypeDto
 }
 
 func NewOrderRepo() domain.ProductRepo {
-	return &productRepo{
-		itemTypes: map[string]gen.ItemTypeDto{
+	return &productInMemRepo{
+		itemTypes: map[string]*domain.ItemTypeDto{
 			"CAPPUCCINO": {
 				Name:  "CAPPUCCINO",
 				Type:  0,
@@ -80,11 +79,11 @@ func NewOrderRepo() domain.ProductRepo {
 	}
 }
 
-func (p *productRepo) GetAll(ctx context.Context) ([]*gen.ItemTypeDto, error) {
-	results := make([]*gen.ItemTypeDto, 0)
+func (p *productInMemRepo) GetAll(ctx context.Context) ([]*domain.ItemTypeDto, error) {
+	results := make([]*domain.ItemTypeDto, 0)
 
 	for _, v := range p.itemTypes {
-		results = append(results, &gen.ItemTypeDto{
+		results = append(results, &domain.ItemTypeDto{
 			Name:  v.Name,
 			Type:  v.Type,
 			Price: v.Price,
@@ -95,13 +94,13 @@ func (p *productRepo) GetAll(ctx context.Context) ([]*gen.ItemTypeDto, error) {
 	return results, nil
 }
 
-func (p *productRepo) GetByTypes(ctx context.Context, itemTypes []string) ([]*gen.ItemDto, error) {
-	results := make([]*gen.ItemDto, 0)
+func (p *productInMemRepo) GetByTypes(ctx context.Context, itemTypes []string) ([]*domain.ItemDto, error) {
+	results := make([]*domain.ItemDto, 0)
 
 	for _, itemType := range itemTypes {
 		item := p.itemTypes[itemType]
 		if item.Name != "" {
-			results = append(results, &gen.ItemDto{
+			results = append(results, &domain.ItemDto{
 				Price: item.Price,
 				Type:  item.Type,
 			})
