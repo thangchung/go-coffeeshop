@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/barista/domain"
-	"github.com/thangchung/go-coffeeshop/pkg/event"
+	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
-	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
 type BaristaOrderedEventHandler interface {
@@ -75,17 +75,17 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e *event.Barist
 	return nil
 }
 
-func calculateDelay(itemType gen.ItemType) time.Duration {
+func calculateDelay(itemType shared.ItemType) time.Duration {
 	switch itemType {
-	case gen.ItemType_COFFEE_BLACK:
+	case shared.ItemTypeCoffeeBlack:
 		return 5 * time.Second
-	case gen.ItemType_COFFEE_WITH_ROOM:
+	case shared.ItemTypeCoffeeWithRoom:
 		return 5 * time.Second
-	case gen.ItemType_ESPRESSO:
+	case shared.ItemTypeEspresso:
 		return 7 * time.Second
-	case gen.ItemType_ESPRESSO_DOUBLE:
+	case shared.ItemTypeEspressoDouble:
 		return 7 * time.Second
-	case gen.ItemType_CAPPUCCINO:
+	case shared.ItemTypeCappuccino:
 		return 10 * time.Second
 	default:
 		return 3 * time.Second

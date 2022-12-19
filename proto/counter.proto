@@ -40,26 +40,26 @@ message GetListOrderFulfillmentResponse {
 
 message OrderDto {
     string id = 1;
-    common.OrderSource order_source = 2;
+    int32 order_source = 2;
     string loyalty_member_id = 3;
-    common.Status order_status = 4;
-    common.Location localtion = 5;
+    int32 order_status = 4;
+    int32 localtion = 5;
     repeated LineItemDto line_items = 6;
 }
 
 message LineItemDto {
     string id = 1;
-    common.ItemType item_type = 2;
+    int32 item_type = 2;
     string name = 3;
     double price = 4;
-    common.Status item_status = 5;
+    int32 item_status = 5;
     bool is_barista_order = 6;
 }
 
 message PlaceOrderRequest {
-    common.CommandType command_type = 1;
-    common.OrderSource order_source = 2;
-    common.Location location = 3;
+    int32 command_type = 1;
+    int32 order_source = 2;
+    int32 location = 3;
     string loyalty_member_id = 4;
     repeated CommandItem barista_items = 5;
     repeated CommandItem kitchen_items = 6;
@@ -68,5 +68,5 @@ message PlaceOrderRequest {
 message PlaceOrderResponse {}
 
 message CommandItem {
-    common.ItemType item_type = 1;
+    int32 item_type = 1;
 }

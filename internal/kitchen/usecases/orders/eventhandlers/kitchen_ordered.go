@@ -7,10 +7,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/domain"
-	"github.com/thangchung/go-coffeeshop/pkg/event"
+	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
-	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
 type KitchenOrderedEventHandler interface {
@@ -50,7 +50,7 @@ func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.Kitche
 	err := h.repo.Create(ctx, &domain.KitchenOrder{
 		ID:       e.ItemLineID,
 		OrderID:  e.OrderID,
-		ItemType: convertToItemType(e.ItemType),
+		ItemType: e.ItemType,
 		ItemName: e.ItemType.String(),
 		TimeUp:   timeUp,
 		Created:  time.Now(),
@@ -82,32 +82,17 @@ func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.Kitche
 	return nil
 }
 
-func calculateDelay(itemType gen.ItemType) time.Duration {
+func calculateDelay(itemType shared.ItemType) time.Duration {
 	switch itemType {
-	case gen.ItemType_CROISSANT:
+	case shared.ItemTypeCroissant:
 		return 7 * time.Second
-	case gen.ItemType_CROISSANT_CHOCOLATE:
+	case shared.ItemTypeCroissantChocolate:
 		return 7 * time.Second
-	case gen.ItemType_CAKEPOP:
+	case shared.ItemTypeCakePop:
 		return 5 * time.Second
-	case gen.ItemType_MUFFIN:
+	case shared.ItemTypeMuffin:
 		return 7 * time.Second
 	default:
 		return 3 * time.Second
-	}
-}
-
-func convertToItemType(dto gen.ItemType) domain.ItemType {
-	switch dto {
-	case gen.ItemType_CROISSANT:
-		return domain.Croissant
-	case gen.ItemType_CROISSANT_CHOCOLATE:
-		return domain.CroissantChocolate
-	case gen.ItemType_CAKEPOP:
-		return domain.CakePop
-	case gen.ItemType_MUFFIN:
-		return domain.Muffin
-	default:
-		return domain.Croissant
 	}
 }

@@ -76,43 +76,12 @@
     }
   },
   "definitions": {
-    "commonCommandType": {
-      "type": "string",
-      "enum": [
-        "PLACE_ORDER"
-      ],
-      "default": "PLACE_ORDER"
-    },
-    "commonItemType": {
-      "type": "string",
-      "enum": [
-        "CAPPUCCINO",
-        "COFFEE_BLACK",
-        "COFFEE_WITH_ROOM",
-        "ESPRESSO",
-        "ESPRESSO_DOUBLE",
-        "LATTE",
-        "CAKEPOP",
-        "CROISSANT",
-        "MUFFIN",
-        "CROISSANT_CHOCOLATE"
-      ],
-      "default": "CAPPUCCINO",
-      "title": "- CAPPUCCINO: Beverages\n - CAKEPOP: Food"
-    },
-    "commonOrderSource": {
-      "type": "string",
-      "enum": [
-        "COUNTER",
-        "WEB"
-      ],
-      "default": "COUNTER"
-    },
     "counterapiCommandItem": {
       "type": "object",
       "properties": {
         "itemType": {
-          "$ref": "#/definitions/commonItemType"
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -134,7 +103,8 @@
           "type": "string"
         },
         "itemType": {
-          "$ref": "#/definitions/commonItemType"
+          "type": "integer",
+          "format": "int32"
         },
         "name": {
           "type": "string"
@@ -144,7 +114,8 @@
           "format": "double"
         },
         "itemStatus": {
-          "$ref": "#/definitions/protocommonStatus"
+          "type": "integer",
+          "format": "int32"
         },
         "isBaristaOrder": {
           "type": "boolean"
@@ -158,16 +129,19 @@
           "type": "string"
         },
         "orderSource": {
-          "$ref": "#/definitions/commonOrderSource"
+          "type": "integer",
+          "format": "int32"
         },
         "loyaltyMemberId": {
           "type": "string"
         },
         "orderStatus": {
-          "$ref": "#/definitions/protocommonStatus"
+          "type": "integer",
+          "format": "int32"
         },
         "localtion": {
-          "$ref": "#/definitions/protocommonLocation"
+          "type": "integer",
+          "format": "int32"
         },
         "lineItems": {
           "type": "array",
@@ -181,13 +155,16 @@
       "type": "object",
       "properties": {
         "commandType": {
-          "$ref": "#/definitions/commonCommandType"
+          "type": "integer",
+          "format": "int32"
         },
         "orderSource": {
-          "$ref": "#/definitions/commonOrderSource"
+          "type": "integer",
+          "format": "int32"
         },
         "location": {
-          "$ref": "#/definitions/protocommonLocation"
+          "type": "integer",
+          "format": "int32"
         },
         "loyaltyMemberId": {
           "type": "string"
@@ -239,24 +216,6 @@
         }
       },
       "additionalProperties": {}
-    },
-    "protocommonLocation": {
-      "type": "string",
-      "enum": [
-        "ATLANTA",
-        "CHARLOTTE",
-        "RALEIGH"
-      ],
-      "default": "ATLANTA"
-    },
-    "protocommonStatus": {
-      "type": "string",
-      "enum": [
-        "PLACED",
-        "IN_PROGRESS",
-        "FULFILLED"
-      ],
-      "default": "PLACED"
     }
   }
 }

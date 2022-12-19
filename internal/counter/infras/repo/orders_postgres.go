@@ -10,9 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/domain/model"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/proto/gen"
 )
 
 const _defaultEntityCap = 64
@@ -81,18 +79,18 @@ func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 	}
 	defer rows.Close()
 
-	var results []model.OrderListResult
+	var results []domain.OrderListResult
 	if err := pgxscan.ScanAll(&results, rows); err != nil {
 		return nil, fmt.Errorf("NewOrderRepo-GetAll-pgxscan.ScanAll: %w", err)
 	}
 
-	uniqueResults := lo.UniqBy(results, func(x model.OrderListResult) string {
+	uniqueResults := lo.UniqBy(results, func(x domain.OrderListResult) string {
 		return x.Order.ID.String()
 	})
-	orders := lo.Map(uniqueResults, func(x model.OrderListResult, _ int) *domain.Order {
+	orders := lo.Map(uniqueResults, func(x domain.OrderListResult, _ int) *domain.Order {
 		return x.Order
 	})
-	lineItems := lo.Map(results, func(x model.OrderListResult, _ int) *domain.LineItem {
+	lineItems := lo.Map(results, func(x domain.OrderListResult, _ int) *domain.LineItem {
 		return x.LineItem
 	})
 	entities := make([]*domain.Order, 0, _defaultEntityCap)
@@ -139,19 +137,19 @@ func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, e
 	}
 	defer rows.Close()
 
-	var results []model.OrderListResult
+	var results []domain.OrderListResult
 	if err := pgxscan.ScanAll(&results, rows); err != nil {
 		return nil, fmt.Errorf("NewOrderRepo-GetByID-pgxscan.ScanAll: %w", err)
 	}
 
-	uniqueResults := lo.UniqBy(results, func(x model.OrderListResult) string {
+	uniqueResults := lo.UniqBy(results, func(x domain.OrderListResult) string {
 		return x.Order.ID.String()
 	})
 
-	orders := lo.Map(uniqueResults, func(x model.OrderListResult, _ int) *domain.Order {
+	orders := lo.Map(uniqueResults, func(x domain.OrderListResult, _ int) *domain.Order {
 		return x.Order
 	})
-	lineItems := lo.Map(results, func(x model.OrderListResult, _ int) *domain.LineItem {
+	lineItems := lo.Map(results, func(x domain.OrderListResult, _ int) *domain.LineItem {
 		return x.LineItem
 	})
 
@@ -180,7 +178,7 @@ func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, e
 	return order, nil
 }
 
-func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error {
+func (d *orderRepo) Create(ctx context.Context, order *domain.Order) error {
 	tx, err := d.pg.Pool.Begin(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "orderRepo-Create-d.pg.Pool.Begin(ctx)")
@@ -191,10 +189,10 @@ func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error 
 		Insert(`"order".orders`).
 		Columns("id", "order_source", "loyalty_member_id", "order_status", "updated").
 		Values(
-			orderModel.Id,
-			orderModel.OrderSource,
-			orderModel.LoyaltyMemberId,
-			orderModel.OrderStatus,
+			order.ID,
+			order.OrderSource,
+			order.LoyaltyMemberID,
+			order.OrderStatus,
 			time.Now(),
 		).
 		ToSql()
@@ -208,7 +206,7 @@ func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error 
 	}
 
 	// continue to insert order items
-	for _, item := range orderModel.LineItems {
+	for _, item := range order.LineItems {
 		sql, args, err = d.pg.Builder.
 			Insert(`"order".line_items`).
 			Columns("id", "item_type", "name", "price", "item_status", "is_barista_order", "order_id", "created", "updated").
@@ -219,7 +217,7 @@ func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error 
 				item.Price,
 				item.ItemStatus,
 				item.IsBaristaOrder,
-				orderModel.Id,
+				order.ID,
 				time.Now(),
 				time.Now(),
 			).
@@ -237,7 +235,7 @@ func (d *orderRepo) Create(ctx context.Context, orderModel *gen.OrderDto) error 
 	return tx.Commit(ctx)
 }
 
-func (d *orderRepo) Update(ctx context.Context, orderModel *gen.OrderDto) (*gen.OrderDto, error) {
+func (d *orderRepo) Update(ctx context.Context, order *domain.Order) (*domain.Order, error) {
 	tx, err := d.pg.Pool.Begin(ctx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "orderRepo-Update-d.pg.Pool.Begin(ctx)")
@@ -246,9 +244,9 @@ func (d *orderRepo) Update(ctx context.Context, orderModel *gen.OrderDto) (*gen.
 	// update order
 	sql, args, err := d.pg.Builder.
 		Update(`"order".orders`).
-		Set("order_status", orderModel.OrderStatus).
+		Set("order_status", order.OrderStatus).
 		Set("updated", time.Now()).
-		Where("id = ?", orderModel.Id).
+		Where("id = ?", order.ID).
 		ToSql()
 	if err != nil {
 		return nil, tx.Rollback(ctx)
@@ -260,12 +258,12 @@ func (d *orderRepo) Update(ctx context.Context, orderModel *gen.OrderDto) (*gen.
 	}
 
 	// continue to update order items
-	for _, item := range orderModel.LineItems {
+	for _, item := range order.LineItems {
 		sql, args, err = d.pg.Builder.
 			Update(`"order".line_items`).
 			Set("item_status", item.ItemStatus).
 			Set("updated", time.Now()).
-			Where("id = ?", item.Id).
+			Where("id = ?", item.ID).
 			ToSql()
 		if err != nil {
 			return nil, tx.Rollback(ctx)
@@ -277,5 +275,5 @@ func (d *orderRepo) Update(ctx context.Context, orderModel *gen.OrderDto) (*gen.
 		}
 	}
 
-	return orderModel, tx.Commit(ctx)
+	return order, tx.Commit(ctx)
 }

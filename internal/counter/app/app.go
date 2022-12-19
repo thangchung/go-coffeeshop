@@ -9,11 +9,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
-	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/repo"
-	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
-	"github.com/thangchung/go-coffeeshop/pkg/event"
+	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
+	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
+	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
@@ -28,7 +27,7 @@ type App struct {
 	cfg     *config.Config
 	network string
 	address string
-	handler domain.BaristaOrderUpdatedEventHandler
+	handler orders.BaristaOrderUpdatedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -114,8 +113,20 @@ func (a *App) Run() error {
 	// domain service
 	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
 
+	// event publishers.
+	baristaEventPub := event.NewEventPublisher(*baristaOrderPub)
+	kitchenEventPub := event.NewEventPublisher(*kitchenOrderPub)
+
+	// usecases.
+	uc := orders.NewUseCase(
+		orderRepo,
+		productDomainSvc,
+		baristaEventPub,
+		kitchenEventPub,
+	)
+
 	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
+	a.handler = orders.NewBaristaOrderUpdatedEventHandler(orderRepo)
 
 	// consumers
 	consumer, err := rabConsumer.NewConsumer(
@@ -156,13 +167,8 @@ func (a *App) Run() error {
 	server := grpc.NewServer()
 	counterGrpc.NewGRPCCounterServer(
 		server,
-		amqpConn,
 		a.cfg,
-		a.logger,
-		orderRepo,
-		productDomainSvc,
-		*baristaOrderPub,
-		*kitchenOrderPub,
+		uc,
 	)
 
 	go func() {
