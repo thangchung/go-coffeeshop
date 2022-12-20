@@ -1,7 +1,6 @@
 package event
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,7 +31,6 @@ func (e KitchenOrdered) Identity() string {
 }
 
 type BaristaOrderUpdated struct {
-	shared.DomainEvent
 	OrderID    uuid.UUID       `json:"orderId"`
 	ItemLineID uuid.UUID       `json:"itemLineId"`
 	Name       string          `json:"name"`
@@ -43,11 +41,10 @@ type BaristaOrderUpdated struct {
 }
 
 func (e BaristaOrderUpdated) Identity() string {
-	return reflect.TypeOf(e).String()
+	return "BaristaOrderUpdated"
 }
 
 type KitchenOrderUpdated struct {
-	shared.DomainEvent
 	OrderID    uuid.UUID       `json:"orderId"`
 	ItemLineID uuid.UUID       `json:"itemLineId"`
 	Name       string          `json:"name"`
@@ -58,5 +55,18 @@ type KitchenOrderUpdated struct {
 }
 
 func (e KitchenOrderUpdated) Identity() string {
-	return reflect.TypeOf(e).String()
+	return "KitchenOrderUpdated"
+}
+
+type OrderUp struct {
+	OrderID    uuid.UUID       `json:"orderId"`
+	ItemLineID uuid.UUID       `json:"itemLineId"`
+	Name       string          `json:"name"`
+	ItemType   shared.ItemType `json:"itemType"`
+	TimeUp     time.Time       `json:"timeUp"`
+	MadeBy     string          `json:"madeBy"`
+}
+
+func (e OrderUp) Identity() string {
+	return "OrderUp"
 }

@@ -1,4 +1,4 @@
-package orders
+package eventhandlers
 
 import (
 	"context"
@@ -12,9 +12,9 @@ type baristaOrderUpdatedEventHandler struct {
 	orderRepo domain.OrderRepo
 }
 
-var _ BaristaOrderUpdatedEventHandler = (*baristaOrderUpdatedEventHandler)(nil)
+var _ domain.BaristaOrderUpdatedEventHandler = (*baristaOrderUpdatedEventHandler)(nil)
 
-func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) BaristaOrderUpdatedEventHandler {
+func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) domain.BaristaOrderUpdatedEventHandler {
 	return &baristaOrderUpdatedEventHandler{
 		orderRepo: orderRepo,
 	}
@@ -26,7 +26,16 @@ func (h *baristaOrderUpdatedEventHandler) Handle(ctx context.Context, e *event.B
 		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-h.orderRepo.GetOrderByID(ctx, e.OrderID): %w", err)
 	}
 
-	if err = order.Apply(e); err != nil {
+	orderUp := event.OrderUp{
+		OrderID:    e.OrderID,
+		ItemLineID: e.ItemLineID,
+		Name:       e.Name,
+		ItemType:   e.ItemType,
+		TimeUp:     e.TimeUp,
+		MadeBy:     e.MadeBy,
+	}
+
+	if err = order.Apply(&orderUp); err != nil {
 		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-order.Apply(e): %w", err)
 	}
 

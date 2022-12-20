@@ -109,7 +109,7 @@ func CreateOrderFrom(
 	return order, nil
 }
 
-func (o *Order) Apply(event *event.BaristaOrderUpdated) error {
+func (o *Order) Apply(event *event.OrderUp) error {
 	if len(o.LineItems) == 0 {
 		return nil // we dont do anything
 	}

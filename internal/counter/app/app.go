@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
+	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	"github.com/thangchung/go-coffeeshop/internal/counter/eventhandlers"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
@@ -23,11 +25,12 @@ import (
 )
 
 type App struct {
-	logger  *mylogger.Logger
-	cfg     *config.Config
-	network string
-	address string
-	handler orders.BaristaOrderUpdatedEventHandler
+	logger         *mylogger.Logger
+	cfg            *config.Config
+	network        string
+	address        string
+	baristaHandler domain.BaristaOrderUpdatedEventHandler
+	kitchenHandler domain.KitchenOrderUpdatedEventHandler
 }
 
 func New(log *mylogger.Logger, cfg *config.Config) *App {
@@ -126,7 +129,8 @@ func (a *App) Run() error {
 	)
 
 	// event handlers.
-	a.handler = orders.NewBaristaOrderUpdatedEventHandler(orderRepo)
+	a.baristaHandler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
+	a.kitchenHandler = eventhandlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
 
 	// consumers
 	consumer, err := rabConsumer.NewConsumer(
@@ -187,7 +191,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 		c.logger.Info("received %s", delivery.Type)
 
 		switch delivery.Type {
-		case "counter-order-updated":
+		case "barista-order-updated":
 			var payload event.BaristaOrderUpdated
 			err := json.Unmarshal(delivery.Body, &payload)
 
@@ -195,7 +199,29 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 				c.logger.LogError(err)
 			}
 
-			err = c.handler.Handle(ctx, &payload)
+			err = c.baristaHandler.Handle(ctx, &payload)
+
+			if err != nil {
+				if err = delivery.Reject(false); err != nil {
+					c.logger.Error("Err delivery.Reject: %v", err)
+				}
+
+				c.logger.Error("Failed to process delivery: %v", err)
+			} else {
+				err = delivery.Ack(false)
+				if err != nil {
+					c.logger.Error("Failed to acknowledge delivery: %v", err)
+				}
+			}
+		case "kitchen-order-updated":
+			var payload event.KitchenOrderUpdated
+			err := json.Unmarshal(delivery.Body, &payload)
+
+			if err != nil {
+				c.logger.LogError(err)
+			}
+
+			err = c.kitchenHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {

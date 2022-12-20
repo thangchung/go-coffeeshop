@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
-	"github.com/thangchung/go-coffeeshop/internal/kitchen/usecases/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/kitchen/usecases/orders/repo"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
@@ -69,7 +69,7 @@ func (a *App) Run() error {
 		a.logger,
 		publisher.ExchangeName("counter-order-exchange"),
 		publisher.BindingKey("counter-order-routing-key"),
-		publisher.MessageTypeName("counter-order-updated"),
+		publisher.MessageTypeName("kitchen-order-updated"),
 	)
 	defer counterOrderPub.CloseChan()
 
