@@ -1,6 +1,8 @@
 package sharedkernel
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type OrderSource int8
 
@@ -63,5 +65,28 @@ const (
 )
 
 func (e ItemType) String() string {
-	return fmt.Sprintf("%d", int(e))
+	switch e {
+	case ItemTypeCappuccino:
+		return "CAPPUCCINO"
+	case ItemTypeCoffeeBlack:
+		return "COFFEE_BLACK"
+	case ItemTypeCoffeeWithRoom:
+		return "COFFEE_WITH_ROOM"
+	case ItemTypeEspresso:
+		return "ESPRESSO"
+	case ItemTypeEspressoDouble:
+		return "ESPRESSO_DOUBLE"
+	case ItemTypeLatte:
+		return "LATTE"
+	case ItemTypeCakePop:
+		return "CAKEPOP"
+	case ItemTypeCroissant:
+		return "CROISSANT"
+	case ItemTypeMuffin:
+		return "MUFFIN"
+	case ItemTypeCroissantChocolate:
+		return "CROISSANT_CHOCOLATE"
+	default:
+		return "CAPPUCCINO"
+	}
 }

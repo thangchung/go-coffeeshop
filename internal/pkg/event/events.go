@@ -17,7 +17,7 @@ type BaristaOrdered struct {
 }
 
 func (e BaristaOrdered) Identity() string {
-	return reflect.TypeOf(e).String()
+	return "BaristaOrdered"
 }
 
 type KitchenOrdered struct {
@@ -28,7 +28,7 @@ type KitchenOrdered struct {
 }
 
 func (e KitchenOrdered) Identity() string {
-	return reflect.TypeOf(e).String()
+	return "KitchenOrdered"
 }
 
 type BaristaOrderUpdated struct {
