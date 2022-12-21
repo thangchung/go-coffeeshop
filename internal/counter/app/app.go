@@ -15,17 +15,16 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
-	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	rabConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type App struct {
-	logger         *mylogger.Logger
 	cfg            *config.Config
 	network        string
 	address        string
@@ -33,9 +32,8 @@ type App struct {
 	kitchenHandler domain.KitchenOrderUpdatedEventHandler
 }
 
-func New(log *mylogger.Logger, cfg *config.Config) *App {
+func New(cfg *config.Config) *App {
 	return &App{
-		logger:  log,
 		cfg:     cfg,
 		network: "tcp",
 		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
@@ -43,14 +41,14 @@ func New(log *mylogger.Logger, cfg *config.Config) *App {
 }
 
 func (a *App) Run() error {
-	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
+	slog.Info("Init app", "name", a.cfg.Name, "version", a.cfg.Version)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// PostgresDB
 	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
 	if err != nil {
-		a.logger.Fatal("app - Run - postgres.NewPostgres: %s", err.Error())
+		slog.Error("failed to create new instance of postgres", err, err.Error())
 
 		cancel()
 
@@ -59,9 +57,9 @@ func (a *App) Run() error {
 	defer pg.Close()
 
 	// RabbitMQ
-	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL, a.logger)
+	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
 	if err != nil {
-		a.logger.Fatal("app - Run - rabbitmq.NewRabbitMQConn: %s", err.Error())
+		slog.Error("failed to create a new RabbitMQConn", err, err.Error())
 
 		cancel()
 
@@ -80,7 +78,6 @@ func (a *App) Run() error {
 
 	baristaOrderPub, err := publisher.NewPublisher(
 		amqpConn,
-		a.logger,
 		publisher.ExchangeName("barista-order-exchange"),
 		publisher.BindingKey("barista-order-routing-key"),
 		publisher.MessageTypeName("barista-order-created"),
@@ -95,7 +92,6 @@ func (a *App) Run() error {
 
 	kitchenOrderPub, err := publisher.NewPublisher(
 		amqpConn,
-		a.logger,
 		publisher.ExchangeName("kitchen-order-exchange"),
 		publisher.BindingKey("kitchen-order-routing-key"),
 		publisher.MessageTypeName("kitchen-order-created"),
@@ -108,7 +104,7 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
 	}
 
-	a.logger.Info("Order Publisher initialized")
+	slog.Info("Order Publisher initialized")
 
 	// repository
 	orderRepo := repo.NewOrderRepo(pg)
@@ -135,7 +131,6 @@ func (a *App) Run() error {
 	// consumers
 	consumer, err := rabConsumer.NewConsumer(
 		amqpConn,
-		a.logger,
 		rabConsumer.ExchangeName("counter-order-exchange"),
 		rabConsumer.QueueName("counter-order-queue"),
 		rabConsumer.BindingKey("counter-order-routing-key"),
@@ -143,13 +138,13 @@ func (a *App) Run() error {
 	)
 
 	if err != nil {
-		a.logger.Fatal("app-Run-consumer.NewOrderConsumer: %s", err.Error())
+		slog.Error("failed to create a new consumer", err, err.Error())
 	}
 
 	go func() {
 		err = consumer.StartConsumer(a.worker)
 		if err != nil {
-			a.logger.Error("StartConsumer: %v", err)
+			slog.Error("failed to start consumer: %v", err)
 			cancel()
 		}
 	}()
@@ -157,14 +152,14 @@ func (a *App) Run() error {
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
 	if err != nil {
-		a.logger.Fatal("app-Run-net.Listener: %s", err.Error())
+		slog.Error("failed to listen to address", err, err.Error(), "network", a.network, "address", a.address)
 
 		return err
 	}
 
 	defer func() {
 		if err := l.Close(); err != nil {
-			a.logger.Error("Failed to close %s %s: %v", a.network, a.address, err)
+			slog.Error("failed to close", err, "network", a.network, "address", a.address)
 		}
 	}()
 
@@ -180,65 +175,65 @@ func (a *App) Run() error {
 		<-ctx.Done()
 	}()
 
-	a.logger.Info("Start server at " + a.address + " ...")
+	slog.Info("start server...", "address", a.address)
 
 	return server.Serve(l)
 }
 
 func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 	for delivery := range messages {
-		c.logger.Info("processDeliveries deliveryTag %v", delivery.DeliveryTag)
-		c.logger.Info("received %s", delivery.Type)
+		slog.Info("processDeliveries", "delivery_tag", delivery.DeliveryTag)
+		slog.Info("received", "delivery_type", delivery.Type)
 
 		switch delivery.Type {
 		case "barista-order-updated":
 			var payload event.BaristaOrderUpdated
-			err := json.Unmarshal(delivery.Body, &payload)
 
+			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
-				c.logger.LogError(err)
+				slog.Error("failed to Unmarshal message", err)
 			}
 
 			err = c.baristaHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
-					c.logger.Error("Err delivery.Reject: %v", err)
+					slog.Error("failed to delivery.Reject", err)
 				}
 
-				c.logger.Error("Failed to process delivery: %v", err)
+				slog.Error("failed to process delivery", err)
 			} else {
 				err = delivery.Ack(false)
 				if err != nil {
-					c.logger.Error("Failed to acknowledge delivery: %v", err)
+					slog.Error("failed to acknowledge delivery", err)
 				}
 			}
 		case "kitchen-order-updated":
 			var payload event.KitchenOrderUpdated
-			err := json.Unmarshal(delivery.Body, &payload)
 
+			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
-				c.logger.LogError(err)
+				slog.Error("failed to Unmarshal message", err)
 			}
 
 			err = c.kitchenHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
-					c.logger.Error("Err delivery.Reject: %v", err)
+					slog.Error("failed to delivery.Reject", err)
 				}
 
-				c.logger.Error("Failed to process delivery: %v", err)
+				slog.Error("failed to process delivery", err)
 			} else {
 				err = delivery.Ack(false)
 				if err != nil {
-					c.logger.Error("Failed to acknowledge delivery: %v", err)
+					slog.Error("failed to acknowledge delivery", err)
 				}
 			}
 		default:
-			c.logger.Info("default")
+			slog.Info("default")
 		}
 	}
 
-	c.logger.Info("Deliveries channel closed")
+	slog.Info("Deliveries channel closed")
 }

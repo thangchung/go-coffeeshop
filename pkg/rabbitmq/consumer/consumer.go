@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	log "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -42,17 +42,14 @@ type Consumer struct {
 	exchangeName, queueName, bindingKey, consumerTag string
 	workerPoolSize                                   int
 	amqpConn                                         *amqp.Connection
-	logger                                           *log.Logger
 }
 
 func NewConsumer(
 	amqpConn *amqp.Connection,
-	logger *log.Logger,
 	opts ...Option,
 ) (*Consumer, error) {
 	sub := &Consumer{
 		amqpConn:       amqpConn,
-		logger:         logger,
 		exchangeName:   _exchangeName,
 		queueName:      _queueName,
 		bindingKey:     _bindingKey,
@@ -74,7 +71,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
 	}
 
-	c.logger.Info("Declaring exchange: %s", c.exchangeName)
+	slog.Info("declaring exchange", c.exchangeName)
 	err = ch.ExchangeDeclare(
 		c.exchangeName,
 		_exchangeKind,
@@ -101,13 +98,8 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		return nil, errors.Wrap(err, "Error ch.QueueDeclare")
 	}
 
-	c.logger.Info("Declared queue, binding it to exchange: Queue: %v, messagesCount: %v, "+
-		"consumerCount: %v, exchange: %v, bindingKey: %v",
-		queue.Name,
-		queue.Messages,
-		queue.Consumers,
-		c.exchangeName,
-		c.bindingKey,
+	slog.Info("declared queue, binding it to exchange", "queue", queue.Name, "messages_count", queue.Messages,
+		"consumer_count", queue.Consumers, "exchange", c.exchangeName, "binding_key", c.bindingKey,
 	)
 
 	err = ch.QueueBind(
@@ -121,7 +113,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		return nil, errors.Wrap(err, "Error ch.QueueBind")
 	}
 
-	c.logger.Info("Queue bound to exchange, starting to consume from queue, consumerTag: %v", c.consumerTag)
+	slog.Info("queue bound to exchange, starting to consume from queue", "consumer_tag", c.consumerTag)
 
 	err = ch.Qos(
 		_prefetchCount,  // prefetch count
@@ -166,7 +158,7 @@ func (c *Consumer) StartConsumer(fn worker) error {
 	}
 
 	chanErr := <-ch.NotifyClose(make(chan *amqp.Error))
-	c.logger.Error("ch.NotifyClose: %v", chanErr)
+	slog.Error("ch.NotifyClose", chanErr)
 	<-forever
 
 	return chanErr

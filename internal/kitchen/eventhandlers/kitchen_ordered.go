@@ -9,8 +9,8 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/domain"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
-	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"golang.org/x/exp/slog"
 )
 
 type KitchenOrderedEventHandler interface {
@@ -22,23 +22,20 @@ var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
 type kitchenOrderedEventHandler struct {
 	repo       domain.OrderRepo
 	counterPub *publisher.Publisher
-	logger     *mylogger.Logger
 }
 
 func NewKitchenOrderedEventHandler(
 	repo domain.OrderRepo,
 	counterPub *publisher.Publisher,
-	logger *mylogger.Logger,
 ) KitchenOrderedEventHandler {
 	return &kitchenOrderedEventHandler{
 		repo:       repo,
 		counterPub: counterPub,
-		logger:     logger,
 	}
 }
 
 func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.KitchenOrdered) error {
-	h.logger.Info("kitchenOrderedEventHandler-Handle: %v", e)
+	slog.Info("kitchenOrderedEventHandler-Handle", "KitchenOrdered", e)
 
 	timeIn := time.Now()
 

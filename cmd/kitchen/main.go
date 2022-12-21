@@ -3,23 +3,30 @@ package main
 import (
 	"os"
 
-	"github.com/golang/glog"
+	"github.com/sirupsen/logrus"
 	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/app"
-	mylog "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/pkg/logger"
+	"golang.org/x/exp/slog"
 )
 
 func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		glog.Fatal(err)
+		slog.Error("failed get config", err)
 	}
 
-	logger := mylog.New(cfg.Level)
+	// set up logrus
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logger.ConvertLogLevel(cfg.Log.Level))
 
-	a := app.New(logger, cfg)
+	// integrate Logrus with the slog logger
+	slog.New(logger.NewLogrusHandler(logrus.StandardLogger()))
+
+	a := app.New(cfg)
 	if err = a.Run(); err != nil {
-		glog.Fatal(err)
+		slog.Error("failed app run", err)
 		os.Exit(1)
 	}
 }

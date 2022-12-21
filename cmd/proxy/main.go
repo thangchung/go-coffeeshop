@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/golang/glog"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/sirupsen/logrus"
 	"github.com/thangchung/go-coffeeshop/cmd/proxy/config"
-	mylog "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/pkg/logger"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
+	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -63,12 +66,12 @@ func preflightHandler(w http.ResponseWriter, r *http.Request) {
 	methods := []string{"GET", "HEAD", "POST", "PUT", "DELETE"}
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
 
-	glog.Infof("preflight request for %s", r.URL.Path)
+	slog.Info("preflight request", "http_path", r.URL.Path)
 }
 
 func withLogger(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		glog.Infof("Run  %s %s", r.Method, r.URL)
+		slog.Info("Run request", "http_method", r.Method, "http_url", r.URL)
 
 		h.ServeHTTP(w, r)
 	})
@@ -76,8 +79,8 @@ func withLogger(h http.Handler) http.Handler {
 
 func main() {
 	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
 
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	cfg, err := config.NewConfig()
@@ -85,14 +88,19 @@ func main() {
 		glog.Fatalf("Config error: %s", err)
 	}
 
-	logger := mylog.New(cfg.Log.Level)
-	logger.Info("Init %s %s\n", cfg.Name, cfg.Version)
+	// set up logrus
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logger.ConvertLogLevel(cfg.Log.Level))
+
+	// integrate Logrus with the slog logger
+	slog.New(logger.NewLogrusHandler(logrus.StandardLogger()))
 
 	mux := http.NewServeMux()
 
 	gw, err := newGateway(ctx, cfg, nil)
 	if err != nil {
-		logger.Fatal("%s", err)
+		slog.Error("failed to create a new gateway", err, err.Error())
 	}
 
 	mux.Handle("/", gw)
@@ -104,16 +112,16 @@ func main() {
 
 	go func() {
 		<-ctx.Done()
-		glog.Infof("Shutting down the http server")
+		slog.Info("shutting down the http server")
 
 		if err := s.Shutdown(context.Background()); err != nil {
-			glog.Errorf("Failed to shutdown http server: %v", err)
+			slog.Error("Failed to shutdown http server: %v", err)
 		}
 	}()
 
-	glog.Infof("Starting listening at %s", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
+	slog.Info("start listening...", "address", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
 
 	if err := s.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
-		glog.Errorf("Failed to listen and serve: %v", err)
+		slog.Error("failed to listen and serve", err, err.Error())
 	}
 }

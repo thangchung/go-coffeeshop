@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	log "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -24,10 +24,9 @@ type Publisher struct {
 	messageTypeName          string
 	amqpChan                 *amqp.Channel
 	amqpConn                 *amqp.Connection
-	logger                   *log.Logger
 }
 
-func NewPublisher(amqpConn *amqp.Connection, logger *log.Logger, opts ...Option) (*Publisher, error) {
+func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (*Publisher, error) {
 	ch, err := amqpConn.Channel()
 	if err != nil {
 		panic(err)
@@ -37,7 +36,6 @@ func NewPublisher(amqpConn *amqp.Connection, logger *log.Logger, opts ...Option)
 	pub := &Publisher{
 		amqpConn:        amqpConn,
 		amqpChan:        ch,
-		logger:          logger,
 		exchangeName:    _exchangeName,
 		bindingKey:      _bindingKey,
 		messageTypeName: _messageTypeName,
@@ -53,7 +51,7 @@ func NewPublisher(amqpConn *amqp.Connection, logger *log.Logger, opts ...Option)
 // CloseChan Close messages chan.
 func (p *Publisher) CloseChan() {
 	if err := p.amqpChan.Close(); err != nil {
-		p.logger.Error("Publisher CloseChan: %v", err)
+		slog.Error("failed to close chan", err)
 	}
 }
 
@@ -65,7 +63,7 @@ func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string
 	}
 	defer ch.Close()
 
-	p.logger.Info("Publishing message Exchange: %s, RoutingKey: %s", p.exchangeName, p.bindingKey)
+	slog.Info("publish message", "exchange", p.exchangeName, "routing_key", p.bindingKey)
 
 	if err := ch.PublishWithContext(
 		ctx,

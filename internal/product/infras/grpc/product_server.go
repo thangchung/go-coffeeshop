@@ -33,7 +33,7 @@ func (g *productGRPCServer) GetItemTypes(
 	ctx context.Context,
 	request *gen.GetItemTypesRequest,
 ) (*gen.GetItemTypesResponse, error) {
-	slog.Info("GET: GetItemTypes")
+	slog.Info("gRPC client", "http_method", "GET", "http_name", "GetItemTypes")
 
 	res := gen.GetItemTypesResponse{}
 
@@ -58,7 +58,7 @@ func (g *productGRPCServer) GetItemsByType(
 	ctx context.Context,
 	request *gen.GetItemsByTypeRequest,
 ) (*gen.GetItemsByTypeResponse, error) {
-	slog.Info("GET: GetItemsByType", "itemTypes", request.ItemTypes)
+	slog.Info("gRPC client", "http_method", "GET", "http_name", "GetItemsByType", "item_types", request.ItemTypes)
 
 	res := gen.GetItemsByTypeResponse{}
 
