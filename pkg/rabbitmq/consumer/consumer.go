@@ -71,7 +71,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
 	}
 
-	slog.Info("declaring exchange", c.exchangeName)
+	slog.Info("declaring exchange", "exchange_name", c.exchangeName)
 	err = ch.ExchangeDeclare(
 		c.exchangeName,
 		_exchangeKind,
@@ -121,7 +121,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		_prefetchGlobal, // global
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error  ch.Qos")
+		return nil, errors.Wrap(err, "Error ch.Qos")
 	}
 
 	return ch, nil
