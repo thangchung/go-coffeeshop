@@ -8,6 +8,8 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/barista/app"
 	"github.com/thangchung/go-coffeeshop/pkg/logger"
 	"golang.org/x/exp/slog"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {

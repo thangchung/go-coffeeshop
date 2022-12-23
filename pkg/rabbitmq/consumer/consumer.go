@@ -71,7 +71,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
 	}
 
-	slog.Info("declaring exchange", c.exchangeName)
+	slog.Info("declaring exchange", "exchange_name", c.exchangeName)
 	err = ch.ExchangeDeclare(
 		c.exchangeName,
 		_exchangeKind,

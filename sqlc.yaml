@@ -1,0 +1,26 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/counter/infras/postgresql/query/query.sql"
+    schema: "internal/counter/infras/postgresql/schema/schema.sql"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/counter/infras/postgresql"
+
+  - engine: "postgresql"
+    queries: "internal/kitchen/infras/postgresql/query/query.sql"
+    schema: "internal/kitchen/infras/postgresql/schema/schema.sql"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/kitchen/infras/postgresql"
+
+  - engine: "postgresql"
+    queries: "internal/barista/infras/postgresql/query/"
+    schema: "internal/barista/infras/postgresql/schema/"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/barista/infras/postgresql"
+        sql_package: "pgx/v5"

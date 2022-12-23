@@ -3,7 +3,6 @@ package eventhandlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,6 +10,7 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"golang.org/x/exp/slog"
 )
 
 type BaristaOrderedEventHandler interface {
@@ -32,19 +32,19 @@ func NewBaristaOrderedEventHandler(repo domain.OrderRepo, counterPub *publisher.
 }
 
 func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e *event.BaristaOrdered) error {
-	fmt.Println(e)
+	slog.Info("received event", "event.BaristaOrdered", *e)
 
 	timeIn := time.Now()
 
 	delay := calculateDelay(e.ItemType)
-	time.Sleep(delay)
+	// time.Sleep(delay)
 
 	timeUp := time.Now().Add(delay)
 
 	err := h.repo.Create(ctx, &domain.BaristaOrder{
 		ID:       e.ItemLineID,
-		ItemType: e.ItemType,
 		ItemName: e.ItemType.String(),
+		ItemType: e.ItemType,
 		TimeUp:   timeUp,
 		Created:  time.Now(),
 		Updated:  time.Now(),

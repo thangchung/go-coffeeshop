@@ -42,15 +42,25 @@ func (a *App) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// PostgresDB
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
-	if err != nil {
-		slog.Error("failed to create a new Postgres", err, err.Error())
+	// pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
+	// if err != nil {
+	// 	slog.Error("failed to create a new Postgres", err, err.Error())
 
+	// 	cancel()
+
+	// 	return err
+	// }
+	// defer pg.Close()
+
+	pg, err := postgres.NewPostgreSQLDb(a.cfg.PG.URL)
+	if err != nil {
 		cancel()
+
+		slog.Error("failed to create a new Postgres", err, err.Error())
 
 		return err
 	}
-	defer pg.Close()
+	defer pg.CloseDB()
 
 	// rabbitmq
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
@@ -58,6 +68,8 @@ func (a *App) Run() error {
 		cancel()
 
 		slog.Error("failed to create a new RabbitMQConn", err, err.Error())
+
+		return err
 	}
 	defer amqpConn.Close()
 
@@ -90,7 +102,6 @@ func (a *App) Run() error {
 		consumer.BindingKey("barista-order-routing-key"),
 		consumer.ConsumerTag("barista-order-consumer"),
 	)
-
 	if err != nil {
 		slog.Error("failed to create a new OrderConsumer", err, err.Error())
 		cancel()
