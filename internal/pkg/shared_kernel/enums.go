@@ -49,7 +49,7 @@ func (e CommandType) String() string {
 	return fmt.Sprintf("%d", int(e))
 }
 
-type ItemType int8
+type ItemType int32
 
 const (
 	ItemTypeCappuccino ItemType = iota
@@ -65,28 +65,17 @@ const (
 )
 
 func (e ItemType) String() string {
-	switch e {
-	case ItemTypeCappuccino:
-		return "CAPPUCCINO"
-	case ItemTypeCoffeeBlack:
-		return "COFFEE_BLACK"
-	case ItemTypeCoffeeWithRoom:
-		return "COFFEE_WITH_ROOM"
-	case ItemTypeEspresso:
-		return "ESPRESSO"
-	case ItemTypeEspressoDouble:
-		return "ESPRESSO_DOUBLE"
-	case ItemTypeLatte:
-		return "LATTE"
-	case ItemTypeCakePop:
-		return "CAKEPOP"
-	case ItemTypeCroissant:
-		return "CROISSANT"
-	case ItemTypeMuffin:
-		return "MUFFIN"
-	case ItemTypeCroissantChocolate:
-		return "CROISSANT_CHOCOLATE"
-	default:
-		return "CAPPUCCINO"
-	}
+	return []string{
+		"CAPPUCCINO",
+		"COFFEE_BLACK",
+		"COFFEE_WITH_ROOM",
+		"ESPRESSO",
+		"ESPRESSO_DOUBLE",
+		"LATTE",
+		"CAKEPOP",
+		"CROISSANT",
+		"MUFFIN",
+		"CROISSANT_CHOCOLATE",
+		"CAPPUCCINO",
+	}[e]
 }

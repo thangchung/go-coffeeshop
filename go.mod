@@ -11,6 +11,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.12.0
 	github.com/ilyakaznacheev/cleanenv v1.3.0
 	github.com/jackc/pgx/v4 v4.17.2
+	github.com/kyleconroy/sqlc v1.16.0
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/lib/pq v1.10.7
 	github.com/pkg/errors v0.9.1

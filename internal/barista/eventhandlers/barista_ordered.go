@@ -2,92 +2,70 @@ package eventhandlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/barista/domain"
+	"github.com/thangchung/go-coffeeshop/internal/barista/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
-	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
+	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
 type BaristaOrderedEventHandler interface {
-	Handle(context.Context, *event.BaristaOrdered) error
+	Handle(context.Context, event.BaristaOrdered) error
 }
 
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
 
 type baristaOrderedEventHandler struct {
-	repo       domain.OrderRepo
+	pg         *postgres.Postgres
 	counterPub *publisher.Publisher
 }
 
-func NewBaristaOrderedEventHandler(repo domain.OrderRepo, counterPub *publisher.Publisher) BaristaOrderedEventHandler {
+func NewBaristaOrderedEventHandler(pg *postgres.Postgres, counterPub *publisher.Publisher) BaristaOrderedEventHandler {
 	return &baristaOrderedEventHandler{
-		repo:       repo,
+		pg:         pg,
 		counterPub: counterPub,
 	}
 }
 
-func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e *event.BaristaOrdered) error {
-	slog.Info("received event", "event.BaristaOrdered", *e)
+func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e event.BaristaOrdered) error {
+	slog.Info("received event", "event.BaristaOrdered", e)
 
-	timeIn := time.Now()
+	order := domain.NewBaristaOrder(e)
 
-	delay := calculateDelay(e.ItemType)
-	// time.Sleep(delay)
+	querier := postgresql.New(h.pg.DB)
 
-	timeUp := time.Now().Add(delay)
-
-	err := h.repo.Create(ctx, &domain.BaristaOrder{
-		ID:       e.ItemLineID,
-		ItemName: e.ItemType.String(),
-		ItemType: e.ItemType,
-		TimeUp:   timeUp,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+	_, err := querier.CreateOrder(ctx, postgresql.CreateOrderParams{
+		ID:       order.ID,
+		ItemType: int32(order.ItemType),
+		ItemName: order.ItemName,
+		TimeUp:   order.TimeUp,
+		Created:  order.Created,
+		Updated: sql.NullTime{
+			Time:  order.Updated,
+			Valid: true,
+		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "baristaOrderedEventHandler-h.repo.Create")
+		slog.Info("failed to call to repo", "error", err)
+
+		return errors.Wrap(err, "baristaOrderedEventHandler-querier.CreateOrder")
 	}
 
-	message := event.BaristaOrderUpdated{
-		OrderID:    e.OrderID,
-		ItemLineID: e.ItemLineID,
-		Name:       e.ItemType.String(),
-		ItemType:   e.ItemType,
-		MadeBy:     "teesee",
-		TimeIn:     timeIn,
-		TimeUp:     timeUp,
-	}
+	for _, event := range order.DomainEvents() {
+		eventBytes, err := json.Marshal(event)
+		if err != nil {
+			return errors.Wrap(err, "json.Marshal[event]")
+		}
 
-	eventBytes, err := json.Marshal(message)
-	if err != nil {
-		return errors.Wrap(err, "json.Marshal - events.BaristaOrderUpdated")
-	}
-
-	if err := h.counterPub.Publish(ctx, eventBytes, "text/plain"); err != nil {
-		return errors.Wrap(err, "BaristaOrderedEventHandler - Publish")
+		if err := h.counterPub.Publish(ctx, eventBytes, "text/plain"); err != nil {
+			return errors.Wrap(err, "counterPub.Publish")
+		}
 	}
 
 	return nil
-}
-
-func calculateDelay(itemType shared.ItemType) time.Duration {
-	switch itemType {
-	case shared.ItemTypeCoffeeBlack:
-		return 5 * time.Second
-	case shared.ItemTypeCoffeeWithRoom:
-		return 5 * time.Second
-	case shared.ItemTypeEspresso:
-		return 7 * time.Second
-	case shared.ItemTypeEspressoDouble:
-		return 7 * time.Second
-	case shared.ItemTypeCappuccino:
-		return 10 * time.Second
-	default:
-		return 3 * time.Second
-	}
 }

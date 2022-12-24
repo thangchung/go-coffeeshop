@@ -1,7 +1,7 @@
 -- name: CreateOrder :one
 
 INSERT INTO
-    "barista".barista_orders (
+    barista.barista_orders (
         id,
         item_type,
         item_name,

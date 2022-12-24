@@ -16,7 +16,7 @@ import (
 const createOrder = `-- name: CreateOrder :one
 
 INSERT INTO
-    "barista".barista_orders (
+    barista.barista_orders (
         id,
         item_type,
         item_name,
@@ -28,12 +28,12 @@ VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, item_type, item_name, time_up, cre
 `
 
 type CreateOrderParams struct {
-	ID       uuid.UUID
-	ItemType int32
-	ItemName string
-	TimeUp   time.Time
-	Created  time.Time
-	Updated  sql.NullTime
+	ID       uuid.UUID    `json:"id"`
+	ItemType int32        `json:"item_type"`
+	ItemName string       `json:"item_name"`
+	TimeUp   time.Time    `json:"time_up"`
+	Created  time.Time    `json:"created"`
+	Updated  sql.NullTime `json:"updated"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (BaristaBaristaOrder, error) {

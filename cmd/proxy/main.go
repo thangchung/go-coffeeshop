@@ -100,7 +100,7 @@ func main() {
 
 	gw, err := newGateway(ctx, cfg, nil)
 	if err != nil {
-		slog.Error("failed to create a new gateway", err, err.Error())
+		slog.Error("failed to create a new gateway", err)
 	}
 
 	mux.Handle("/", gw)
@@ -115,13 +115,13 @@ func main() {
 		slog.Info("shutting down the http server")
 
 		if err := s.Shutdown(context.Background()); err != nil {
-			slog.Error("Failed to shutdown http server: %v", err)
+			slog.Error("failed to shutdown http server", err)
 		}
 	}()
 
 	slog.Info("start listening...", "address", fmt.Sprintf("%s:%d", cfg.Host, cfg.Port))
 
 	if err := s.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
-		slog.Error("failed to listen and serve", err, err.Error())
+		slog.Error("failed to listen and serve", err)
 	}
 }

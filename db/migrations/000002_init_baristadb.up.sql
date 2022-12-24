@@ -1,15 +1,22 @@
 START TRANSACTION;
 
-DO $EF$ BEGIN IF NOT EXISTS(
-        SELECT 1
-        FROM pg_namespace
-        WHERE
-            nspname = 'barista'
-    ) THEN CREATE SCHEMA barista;
+-- DO $$ BEGIN IF NOT EXISTS(
 
-END IF;
+--         SELECT 1
 
-END $EF$;
+--         FROM pg_namespace
+
+--         WHERE
+
+--             nspname = 'barista'
+
+--     ) THEN CREATE SCHEMA barista;
+
+-- END IF;
+
+-- END $$;
+
+CREATE SCHEMA IF NOT EXISTS "barista";
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

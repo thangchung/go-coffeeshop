@@ -1,6 +1,8 @@
 package logger
 
-// ref: https://josephwoodward.co.uk/2022/11/slog-structured-logging-proposal
+// refs:
+// https://josephwoodward.co.uk/2022/11/slog-structured-logging-proposal
+// https://thedevelopercafe.com/articles/logging-in-go-with-slog-a7bb489755c2
 
 import (
 	"strings"

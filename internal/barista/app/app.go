@@ -12,7 +12,6 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/barista/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
@@ -52,11 +51,11 @@ func (a *App) Run() error {
 	// }
 	// defer pg.Close()
 
-	pg, err := postgres.NewPostgreSQLDb(a.cfg.PG.URL)
+	pg, err := postgres.NewPostgreSQLDb(a.cfg.PG.DsnURL)
 	if err != nil {
 		cancel()
 
-		slog.Error("failed to create a new Postgres", err, err.Error())
+		slog.Error("failed to create a new Postgres", err)
 
 		return err
 	}
@@ -67,7 +66,7 @@ func (a *App) Run() error {
 	if err != nil {
 		cancel()
 
-		slog.Error("failed to create a new RabbitMQConn", err, err.Error())
+		slog.Error("failed to create a new RabbitMQConn", err)
 
 		return err
 	}
@@ -88,11 +87,8 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
 
-	// repository
-	orderRepo := repo.NewOrderRepo(pg)
-
 	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderedEventHandler(orderRepo, counterOrderPub)
+	a.handler = eventhandlers.NewBaristaOrderedEventHandler(pg, counterOrderPub)
 
 	// consumers
 	consumer, err := consumer.NewConsumer(
@@ -103,7 +99,7 @@ func (a *App) Run() error {
 		consumer.ConsumerTag("barista-order-consumer"),
 	)
 	if err != nil {
-		slog.Error("failed to create a new OrderConsumer", err, err.Error())
+		slog.Error("failed to create a new OrderConsumer", err)
 		cancel()
 	}
 
@@ -141,21 +137,21 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 			err := json.Unmarshal(delivery.Body, &payload)
 
 			if err != nil {
-				slog.Error("failed to Unmarshal", err, err.Error())
+				slog.Error("failed to Unmarshal", err)
 			}
 
-			err = c.handler.Handle(ctx, &payload)
+			err = c.handler.Handle(ctx, payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
-					slog.Error("failed to delivery.Reject", err, err.Error())
+					slog.Error("failed to delivery.Reject", err)
 				}
 
-				slog.Error("failed to process delivery", err, err.Error())
+				slog.Error("failed to process delivery", err)
 			} else {
 				err = delivery.Ack(false)
 				if err != nil {
-					slog.Error("failed to acknowledge delivery", err, err.Error())
+					slog.Error("failed to acknowledge delivery", err)
 				}
 			}
 		default:

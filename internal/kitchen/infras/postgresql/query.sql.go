@@ -16,7 +16,7 @@ import (
 const createOrder = `-- name: CreateOrder :one
 
 INSERT INTO
-    "kitchen".kitchen_orders (
+    kitchen.kitchen_orders (
         id,
         order_id,
         item_type,

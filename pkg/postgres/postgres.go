@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/exp/slog"
 
 	_ "github.com/lib/pq"
 )
@@ -30,6 +31,8 @@ type Postgres struct {
 }
 
 func NewPostgreSQLDb(url string, opts ...Option) (*Postgres, error) {
+	slog.Info("CONN", "connect string", url)
+
 	pg := &Postgres{
 		maxPoolSize:  _defaultMaxPoolSize,
 		connAttempts: _defaultConnAttempts,
@@ -40,27 +43,25 @@ func NewPostgreSQLDb(url string, opts ...Option) (*Postgres, error) {
 		opt(pg)
 	}
 
-	// var err error
-
-	// for pg.connAttempts > 0 {
-	// 	pg.DB, err = sql.Open("postgres", url)
-	// 	if err != nil {
-	// 		break
-	// 	}
-
-	// 	log.Printf("Postgres is trying to connect, attempts left: %d", pg.connAttempts)
-
-	// 	time.Sleep(pg.connTimeout)
-
-	// 	pg.connAttempts--
-	// }
-
 	var err error
+	for pg.connAttempts > 0 {
+		pg.DB, err = sql.Open("postgres", url)
+		if err != nil {
+			break
+		}
 
-	pg.DB, err = sql.Open("postgres", url)
-	if err != nil {
-		return nil, err
+		log.Printf("Postgres is trying to connect, attempts left: %d", pg.connAttempts)
+
+		time.Sleep(pg.connTimeout)
+
+		pg.connAttempts--
 	}
+
+	// slog.Info("CONN", "connect string", url)
+	// pg.DB, err = sql.Open("postgres", url)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return pg, nil
 }

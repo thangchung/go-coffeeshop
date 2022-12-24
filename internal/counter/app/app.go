@@ -48,7 +48,7 @@ func (a *App) Run() error {
 	// PostgresDB
 	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
 	if err != nil {
-		slog.Error("failed to create new instance of postgres", err, err.Error())
+		slog.Error("failed to create new instance of postgres", err)
 
 		cancel()
 
@@ -59,7 +59,7 @@ func (a *App) Run() error {
 	// RabbitMQ
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
 	if err != nil {
-		slog.Error("failed to create a new RabbitMQConn", err, err.Error())
+		slog.Error("failed to create a new RabbitMQConn", err)
 
 		cancel()
 
@@ -138,7 +138,7 @@ func (a *App) Run() error {
 	)
 
 	if err != nil {
-		slog.Error("failed to create a new consumer", err, err.Error())
+		slog.Error("failed to create a new consumer", err)
 	}
 
 	go func() {
@@ -152,7 +152,7 @@ func (a *App) Run() error {
 	// gRPC Server
 	l, err := net.Listen(a.network, a.address)
 	if err != nil {
-		slog.Error("failed to listen to address", err, err.Error(), "network", a.network, "address", a.address)
+		slog.Error("failed to listen to address", err, "network", a.network, "address", a.address)
 
 		return err
 	}

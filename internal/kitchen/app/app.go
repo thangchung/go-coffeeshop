@@ -44,7 +44,7 @@ func (a *App) Run() error {
 	// postgresdb.
 	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
 	if err != nil {
-		slog.Error("failed to create a new Postgres", err, err.Error())
+		slog.Error("failed to create a new Postgres", err)
 
 		cancel()
 
@@ -57,7 +57,7 @@ func (a *App) Run() error {
 	if err != nil {
 		cancel()
 
-		slog.Error("failed to create a new RabbitMQConn", err, err.Error())
+		slog.Error("failed to create a new RabbitMQConn", err)
 	}
 	defer amqpConn.Close()
 
@@ -92,7 +92,7 @@ func (a *App) Run() error {
 	)
 
 	if err != nil {
-		slog.Error("failed to create a new OrderConsumer", err, err.Error())
+		slog.Error("failed to create a new OrderConsumer", err)
 		cancel()
 	}
 
@@ -137,14 +137,14 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
-					slog.Error("failed to delivery.Reject", err, err.Error())
+					slog.Error("failed to delivery.Reject", err)
 				}
 
-				slog.Error("failed to process delivery", err, err.Error())
+				slog.Error("failed to process delivery", err)
 			} else {
 				err = delivery.Ack(false)
 				if err != nil {
-					slog.Error("failed to acknowledge delivery", err, err.Error())
+					slog.Error("failed to acknowledge delivery", err)
 				}
 			}
 		default:
