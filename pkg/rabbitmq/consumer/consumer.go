@@ -121,7 +121,7 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 		_prefetchGlobal, // global
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error  ch.Qos")
+		return nil, errors.Wrap(err, "Error ch.Qos")
 	}
 
 	return ch, nil
