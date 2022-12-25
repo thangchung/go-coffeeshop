@@ -27,11 +27,11 @@ VALUES ($1, $2, $3, $4, $5) RETURNING id, order_source, loyalty_member_id, order
 `
 
 type CreateOrderParams struct {
-	ID              uuid.UUID
-	OrderSource     int32
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     int32
-	Updated         sql.NullTime
+	ID              uuid.UUID    `json:"id"`
+	OrderSource     int32        `json:"order_source"`
+	LoyaltyMemberID uuid.UUID    `json:"loyalty_member_id"`
+	OrderStatus     int32        `json:"order_status"`
+	Updated         sql.NullTime `json:"updated"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (OrderOrder, error) {
@@ -71,16 +71,16 @@ FROM "order".orders o
 `
 
 type GetAllRow struct {
-	ID              uuid.UUID
-	OrderSource     int32
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     int32
-	LineItemID      uuid.NullUUID
-	ItemType        int32
-	Name            string
-	Price           string
-	ItemStatus      int32
-	IsBaristaOrder  bool
+	ID              uuid.UUID     `json:"id"`
+	OrderSource     int32         `json:"order_source"`
+	LoyaltyMemberID uuid.UUID     `json:"loyalty_member_id"`
+	OrderStatus     int32         `json:"order_status"`
+	LineItemID      uuid.NullUUID `json:"line_item_id"`
+	ItemType        int32         `json:"item_type"`
+	Name            string        `json:"name"`
+	Price           string        `json:"price"`
+	ItemStatus      int32         `json:"item_status"`
+	IsBaristaOrder  bool          `json:"is_barista_order"`
 }
 
 func (q *Queries) GetAll(ctx context.Context) ([]GetAllRow, error) {
@@ -136,16 +136,16 @@ WHERE o.id = $1
 `
 
 type GetByIDRow struct {
-	ID              uuid.UUID
-	OrderSource     int32
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     int32
-	LineItemID      uuid.NullUUID
-	ItemType        int32
-	Name            string
-	Price           string
-	ItemStatus      int32
-	IsBaristaOrder  bool
+	ID              uuid.UUID     `json:"id"`
+	OrderSource     int32         `json:"order_source"`
+	LoyaltyMemberID uuid.UUID     `json:"loyalty_member_id"`
+	OrderStatus     int32         `json:"order_status"`
+	LineItemID      uuid.NullUUID `json:"line_item_id"`
+	ItemType        int32         `json:"item_type"`
+	Name            string        `json:"name"`
+	Price           string        `json:"price"`
+	ItemStatus      int32         `json:"item_status"`
+	IsBaristaOrder  bool          `json:"is_barista_order"`
 }
 
 func (q *Queries) GetByID(ctx context.Context, id uuid.UUID) ([]GetByIDRow, error) {
@@ -200,15 +200,15 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, item_type, name, price
 `
 
 type InsertItemLineParams struct {
-	ID             uuid.UUID
-	ItemType       int32
-	Name           string
-	Price          string
-	ItemStatus     int32
-	IsBaristaOrder bool
-	OrderID        uuid.NullUUID
-	Created        time.Time
-	Updated        sql.NullTime
+	ID             uuid.UUID     `json:"id"`
+	ItemType       int32         `json:"item_type"`
+	Name           string        `json:"name"`
+	Price          string        `json:"price"`
+	ItemStatus     int32         `json:"item_status"`
+	IsBaristaOrder bool          `json:"is_barista_order"`
+	OrderID        uuid.NullUUID `json:"order_id"`
+	Created        time.Time     `json:"created"`
+	Updated        sql.NullTime  `json:"updated"`
 }
 
 func (q *Queries) InsertItemLine(ctx context.Context, arg InsertItemLineParams) (OrderLineItem, error) {
@@ -248,9 +248,9 @@ WHERE id = $1
 `
 
 type UpdateItemLineParams struct {
-	ID         uuid.UUID
-	ItemStatus int32
-	Updated    sql.NullTime
+	ID         uuid.UUID    `json:"id"`
+	ItemStatus int32        `json:"item_status"`
+	Updated    sql.NullTime `json:"updated"`
 }
 
 func (q *Queries) UpdateItemLine(ctx context.Context, arg UpdateItemLineParams) error {
@@ -268,9 +268,9 @@ WHERE id = $1
 `
 
 type UpdateOrderParams struct {
-	ID          uuid.UUID
-	OrderStatus int32
-	Updated     sql.NullTime
+	ID          uuid.UUID    `json:"id"`
+	OrderStatus int32        `json:"order_status"`
+	Updated     sql.NullTime `json:"updated"`
 }
 
 func (q *Queries) UpdateOrder(ctx context.Context, arg UpdateOrderParams) error {

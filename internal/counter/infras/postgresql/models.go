@@ -12,21 +12,21 @@ import (
 )
 
 type OrderLineItem struct {
-	ID             uuid.UUID
-	ItemType       int32
-	Name           string
-	Price          string
-	ItemStatus     int32
-	IsBaristaOrder bool
-	OrderID        uuid.NullUUID
-	Created        time.Time
-	Updated        sql.NullTime
+	ID             uuid.UUID     `json:"id"`
+	ItemType       int32         `json:"item_type"`
+	Name           string        `json:"name"`
+	Price          string        `json:"price"`
+	ItemStatus     int32         `json:"item_status"`
+	IsBaristaOrder bool          `json:"is_barista_order"`
+	OrderID        uuid.NullUUID `json:"order_id"`
+	Created        time.Time     `json:"created"`
+	Updated        sql.NullTime  `json:"updated"`
 }
 
 type OrderOrder struct {
-	ID              uuid.UUID
-	OrderSource     int32
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     int32
-	Updated         sql.NullTime
+	ID              uuid.UUID    `json:"id"`
+	OrderSource     int32        `json:"order_source"`
+	LoyaltyMemberID uuid.UUID    `json:"loyalty_member_id"`
+	OrderStatus     int32        `json:"order_status"`
+	Updated         sql.NullTime `json:"updated"`
 }

@@ -12,11 +12,11 @@ import (
 )
 
 type KitchenKitchenOrder struct {
-	ID       uuid.UUID
-	OrderID  uuid.UUID
-	ItemType int32
-	ItemName string
-	TimeUp   time.Time
-	Created  time.Time
-	Updated  sql.NullTime
+	ID       uuid.UUID    `json:"id"`
+	OrderID  uuid.UUID    `json:"order_id"`
+	ItemType int32        `json:"item_type"`
+	ItemName string       `json:"item_name"`
+	TimeUp   time.Time    `json:"time_up"`
+	Created  time.Time    `json:"created"`
+	Updated  sql.NullTime `json:"updated"`
 }

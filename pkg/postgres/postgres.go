@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/exp/slog"
 
 	_ "github.com/lib/pq"
@@ -21,9 +19,7 @@ type Postgres struct {
 	connAttempts int
 	connTimeout  time.Duration
 
-	Builder squirrel.StatementBuilderType
-	Pool    *pgxpool.Pool
-	DB      *sql.DB
+	DB *sql.DB
 }
 
 func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {

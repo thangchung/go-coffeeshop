@@ -7,6 +7,7 @@ sql:
       go:
         package: "postgresql"
         out: "internal/counter/infras/postgresql"
+        emit_json_tags: true
 
   - engine: "postgresql"
     queries: "internal/kitchen/infras/postgresql/query/query.sql"
@@ -15,6 +16,7 @@ sql:
       go:
         package: "postgresql"
         out: "internal/kitchen/infras/postgresql"
+        emit_json_tags: true
 
   - engine: "postgresql"
     queries: "internal/barista/infras/postgresql/query/"
@@ -23,6 +25,4 @@ sql:
       go:
         package: "postgresql"
         out: "internal/barista/infras/postgresql"
-        sql_package: "pgx/v5"
         emit_json_tags: true
-        emit_prepared_queries: false

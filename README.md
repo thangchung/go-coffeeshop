@@ -8,17 +8,18 @@ Other version can be found at:
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
 
 ## Technical stack
+
 - Backend building blocks
   - [grpc-ecosystem/grpc-gateway/v2](https://github.com/grpc-ecosystem/grpc-gateway)
   - [labstack/echo/v4](https://github.com/labstack/echo)
   - [rabbitmq/amqp091-go](https://github.com/rabbitmq/amqp091-go)
-  - [jackc/pgx/v4](https://github.com/jackc/pgx)
-  - [Masterminds/squirrel](https://github.com/Masterminds/squirrel)
-  - [georgysavva/scany](https://github.com/georgysavva/scany)
+  - [kyleconroy/sqlc](https://github.com/kyleconroy/sqlc)
+    - [pq](github.com/lib/pq)
   - [golang-migrate/migrate/v4](https://github.com/golang-migrate/migrate)
   - Utils
     - [ilyakaznacheev/cleanenv](https://github.com/ilyakaznacheev/cleanenv)
-    - [sirupsen/logrus](https://github.com/sirupsen/logrus)
+    - golang.org/x/exp/slog
+      - [sirupsen/logrus](https://github.com/sirupsen/logrus)
     - [samber/lo](https://github.com/samber/lo)
     - golang/glog
     - google/uuid
@@ -33,7 +34,7 @@ Other version can be found at:
 
 ## CoffeeShop - Choreography Saga
 
-![](docs/coffeeshop.svg)
+![coffeeshop](docs/coffeeshop.svg)
 
 ## Services
 
@@ -51,8 +52,8 @@ No. | Service | URI
 Jump into `.devcontainer`, then
 
 ```bash
-> docker-compose -f docker-compose-full.yaml build
-> docker-compose -f docker-compose-full.yaml up
+> docker-compose build
+> docker-compose up
 ```
 
 From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8080](http://localhost:8080).
@@ -74,7 +75,7 @@ Enjoy!!!
 
 ## HashiCorp stack deployment
 
-![](docs/coffeeshop_hashicorp.svg)
+![coffeeshop_hashicorp](docs/coffeeshop_hashicorp.svg)
 
 The details of how to run it can be find at [deployment with Nomad, Consult Connect and Vault](build/README.md).
 
@@ -88,7 +89,7 @@ The details of how to run it can be find at [deployment with Nomad, Consult Conn
 
 ## Roadmap
 
-- Enhance project structure with DDD patterns
+- Enhance project structure with DDD patterns: DONE
 - Add testing
 - Add and integrate with observability libs and tools
 - Add user identity management (authentication and authorization)
