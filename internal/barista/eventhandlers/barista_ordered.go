@@ -14,10 +14,6 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type BaristaOrderedEventHandler interface {
-	Handle(context.Context, event.BaristaOrdered) error
-}
-
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
 
 type baristaOrderedEventHandler struct {
@@ -39,7 +35,14 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e event.Barista
 
 	querier := postgresql.New(h.pg.DB)
 
-	_, err := querier.CreateOrder(ctx, postgresql.CreateOrderParams{
+	tx, err := h.pg.DB.Begin()
+	if err != nil {
+		return errors.Wrap(err, "baristaOrderedEventHandler.Handle")
+	}
+
+	qtx := querier.WithTx(tx)
+
+	_, err = qtx.CreateOrder(ctx, postgresql.CreateOrderParams{
 		ID:       order.ID,
 		ItemType: int32(order.ItemType),
 		ItemName: order.ItemName,
@@ -56,6 +59,7 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e event.Barista
 		return errors.Wrap(err, "baristaOrderedEventHandler-querier.CreateOrder")
 	}
 
+	// todo: it might cause dual-write problem, but we accept it temporary
 	for _, event := range order.DomainEvents() {
 		eventBytes, err := json.Marshal(event)
 		if err != nil {
@@ -67,5 +71,5 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e event.Barista
 		}
 	}
 
-	return nil
+	return tx.Commit()
 }

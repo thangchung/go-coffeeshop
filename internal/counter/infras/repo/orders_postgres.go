@@ -2,14 +2,17 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
-	"github.com/georgysavva/scany/pgxscan"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	"github.com/thangchung/go-coffeeshop/internal/counter/infras/postgresql"
+	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 )
 
@@ -25,73 +28,41 @@ func NewOrderRepo(pg *postgres.Postgres) domain.OrderRepo {
 	return &orderRepo{pg: pg}
 }
 
-func (d *orderRepo) getAllFunc() (string, error) {
-	sql, _, err := d.pg.Builder.
-		Select(`
-			o.id as "o.id", 
-			order_source as "o.order_source", 
-			loyalty_member_id as "o.loyalty_member_id", 
-			order_status as "o.order_status",
-			l.id as "l.id",
-			item_type as "l.item_type",
-			name as "l.name",
-			price as "l.price",
-			item_status as "l.item_status",
-			is_barista_order as "l.is_barista_order",
-			o.id as "l.order_id"
-			`).
-		From(`"order".orders o`).Join(`"order".line_items l ON o.id = l.order_id`).
-		Limit(_defaultEntityCap).
-		ToSql()
-
-	return sql, err
-}
-
-func (d *orderRepo) getByIDFunc(id uuid.UUID) (string, []interface{}, error) {
-	return d.pg.Builder.
-		Select(`
-			o.id as "o.id", 
-			order_source as "o.order_source", 
-			loyalty_member_id as "o.loyalty_member_id", 
-			order_status as "o.order_status",
-			l.id as "l.id",
-			item_type as "l.item_type",
-			name as "l.name",
-			price as "l.price",
-			item_status as "l.item_status",
-			is_barista_order as "l.is_barista_order",
-			o.id as "l.order_id"
-		`).
-		From(`"order".orders o`).Join(`"order".line_items l ON o.id = l.order_id`).
-		Where("o.id = ?", id).
-		ToSql()
-}
-
 func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
-	sql, err := d.getAllFunc()
+	querier := postgresql.New(d.pg.DB)
+
+	results, err := querier.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Builder: %w", err)
+		return nil, errors.Wrap(err, "querier.GetAll")
 	}
 
-	rows, err := d.pg.Pool.Query(ctx, sql)
-	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetAll-r.Pool.Query: %w", err)
-	}
-	defer rows.Close()
-
-	var results []domain.OrderListResult
-	if err := pgxscan.ScanAll(&results, rows); err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetAll-pgxscan.ScanAll: %w", err)
-	}
-
-	uniqueResults := lo.UniqBy(results, func(x domain.OrderListResult) string {
-		return x.Order.ID.String()
+	uniqueResults := lo.UniqBy(results, func(x postgresql.GetAllRow) string {
+		return x.ID.String()
 	})
-	orders := lo.Map(uniqueResults, func(x domain.OrderListResult, _ int) *domain.Order {
-		return x.Order
+	orders := lo.Map(uniqueResults, func(x postgresql.GetAllRow, _ int) *domain.Order {
+		return &domain.Order{
+			ID:              x.ID,
+			OrderSource:     shared.OrderSource(x.OrderSource),
+			LoyaltyMemberID: x.LoyaltyMemberID,
+			OrderStatus:     shared.Status(x.OrderStatus),
+		}
 	})
-	lineItems := lo.Map(results, func(x domain.OrderListResult, _ int) *domain.LineItem {
-		return x.LineItem
+	lineItems := lo.Map(results, func(x postgresql.GetAllRow, _ int) *domain.LineItem {
+		priceX, err := strconv.ParseFloat(x.Price, 32)
+		if err != nil {
+			return nil
+		}
+		price := float32(priceX)
+
+		return &domain.LineItem{
+			ID:             x.LineItemID.UUID,
+			ItemType:       shared.ItemType(x.ItemType),
+			Name:           x.Name,
+			Price:          price,
+			ItemStatus:     shared.Status(x.ItemStatus),
+			IsBaristaOrder: x.IsBaristaOrder,
+			OrderID:        x.ID,
+		}
 	})
 	entities := make([]*domain.Order, 0, _defaultEntityCap)
 
@@ -126,31 +97,41 @@ func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 }
 
 func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
-	sql, args, err := d.getByIDFunc(id)
+	querier := postgresql.New(d.pg.DB)
+
+	results, err := querier.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetByID-r.Builder: %w", err)
+		return nil, errors.Wrap(err, "querier.GetAll")
 	}
 
-	rows, err := d.pg.Pool.Query(ctx, sql, args...)
-	if err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetByID-r.Pool.Query: %w", err)
-	}
-	defer rows.Close()
-
-	var results []domain.OrderListResult
-	if err := pgxscan.ScanAll(&results, rows); err != nil {
-		return nil, fmt.Errorf("NewOrderRepo-GetByID-pgxscan.ScanAll: %w", err)
-	}
-
-	uniqueResults := lo.UniqBy(results, func(x domain.OrderListResult) string {
-		return x.Order.ID.String()
+	uniqueResults := lo.UniqBy(results, func(x postgresql.GetByIDRow) string {
+		return x.ID.String()
 	})
 
-	orders := lo.Map(uniqueResults, func(x domain.OrderListResult, _ int) *domain.Order {
-		return x.Order
+	orders := lo.Map(uniqueResults, func(x postgresql.GetByIDRow, _ int) *domain.Order {
+		return &domain.Order{
+			ID:              x.ID,
+			OrderSource:     shared.OrderSource(x.OrderSource),
+			LoyaltyMemberID: x.LoyaltyMemberID,
+			OrderStatus:     shared.Status(x.OrderStatus),
+		}
 	})
-	lineItems := lo.Map(results, func(x domain.OrderListResult, _ int) *domain.LineItem {
-		return x.LineItem
+	lineItems := lo.Map(results, func(x postgresql.GetByIDRow, _ int) *domain.LineItem {
+		priceX, err := strconv.ParseFloat(x.Price, 32)
+		if err != nil {
+			return nil
+		}
+		price := float32(priceX)
+
+		return &domain.LineItem{
+			ID:             x.LineItemID.UUID,
+			ItemType:       shared.ItemType(x.ItemType),
+			Name:           x.Name,
+			Price:          price,
+			ItemStatus:     shared.Status(x.ItemStatus),
+			IsBaristaOrder: x.IsBaristaOrder,
+			OrderID:        x.ID,
+		}
 	})
 
 	if len(orders) == 0 {
@@ -179,101 +160,94 @@ func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, e
 }
 
 func (d *orderRepo) Create(ctx context.Context, order *domain.Order) error {
-	tx, err := d.pg.Pool.Begin(ctx)
+	querier := postgresql.New(d.pg.DB)
+
+	tx, err := d.pg.DB.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "orderRepo-Create-d.pg.Pool.Begin(ctx)")
+		return errors.Wrap(err, "baristaOrderedEventHandler.Handle")
 	}
 
-	// insert order
-	sql, args, err := d.pg.Builder.
-		Insert(`"order".orders`).
-		Columns("id", "order_source", "loyalty_member_id", "order_status", "updated").
-		Values(
-			order.ID,
-			order.OrderSource,
-			order.LoyaltyMemberID,
-			order.OrderStatus,
-			time.Now(),
-		).
-		ToSql()
-	if err != nil {
-		return tx.Rollback(ctx)
-	}
+	qtx := querier.WithTx(tx)
 
-	_, err = d.pg.Pool.Exec(ctx, sql, args...)
+	_, err = qtx.CreateOrder(ctx, postgresql.CreateOrderParams{
+		ID:              order.ID,
+		OrderSource:     int32(order.OrderSource),
+		LoyaltyMemberID: order.LoyaltyMemberID,
+		OrderStatus:     int32(order.OrderStatus),
+		Updated: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+	})
 	if err != nil {
-		return tx.Rollback(ctx)
+		return errors.Wrap(err, "qtx.CreateOrder(ctx, postgresql.CreateOrderParams{})")
 	}
 
 	// continue to insert order items
 	for _, item := range order.LineItems {
-		sql, args, err = d.pg.Builder.
-			Insert(`"order".line_items`).
-			Columns("id", "item_type", "name", "price", "item_status", "is_barista_order", "order_id", "created", "updated").
-			Values(
-				uuid.New(),
-				item.ItemType,
-				item.Name,
-				item.Price,
-				item.ItemStatus,
-				item.IsBaristaOrder,
-				order.ID,
-				time.Now(),
-				time.Now(),
-			).
-			ToSql()
-		if err != nil {
-			return tx.Rollback(ctx)
-		}
+		_, err = qtx.InsertItemLine(ctx, postgresql.InsertItemLineParams{
+			ID:             item.ID,
+			ItemType:       int32(item.ItemType),
+			Name:           item.Name,
+			Price:          fmt.Sprintf("%f", item.Price),
+			ItemStatus:     int32(item.ItemStatus),
+			IsBaristaOrder: item.IsBaristaOrder,
+			OrderID: uuid.NullUUID{
+				UUID:  order.ID,
+				Valid: true,
+			},
+			Created: time.Now(),
+			Updated: sql.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			},
+		})
 
-		_, err = d.pg.Pool.Exec(ctx, sql, args...)
 		if err != nil {
-			return tx.Rollback(ctx)
+			return errors.Wrap(err, "qtx.InsertItemLine(ctx, postgresql.InsertItemLineParams{})")
 		}
 	}
 
-	return tx.Commit(ctx)
+	return tx.Commit()
 }
 
 func (d *orderRepo) Update(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	tx, err := d.pg.Pool.Begin(ctx)
+	querier := postgresql.New(d.pg.DB)
+
+	tx, err := d.pg.DB.Begin()
 	if err != nil {
-		return nil, errors.Wrapf(err, "orderRepo-Update-d.pg.Pool.Begin(ctx)")
+		return nil, errors.Wrap(err, "baristaOrderedEventHandler.Handle")
 	}
 
-	// update order
-	sql, args, err := d.pg.Builder.
-		Update(`"order".orders`).
-		Set("order_status", order.OrderStatus).
-		Set("updated", time.Now()).
-		Where("id = ?", order.ID).
-		ToSql()
+	qtx := querier.WithTx(tx)
+
+	err = qtx.UpdateOrder(ctx, postgresql.UpdateOrderParams{
+		ID:          order.ID,
+		OrderStatus: int32(order.OrderStatus),
+		Updated: sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		},
+	})
 	if err != nil {
-		return nil, tx.Rollback(ctx)
+		return nil, errors.Wrap(err, "qtx.UpdateOrder(ctx, postgresql.UpdateOrderParams{})")
 	}
 
-	_, err = d.pg.Pool.Exec(ctx, sql, args...)
-	if err != nil {
-		return nil, tx.Rollback(ctx)
-	}
-
-	// continue to update order items
+	// continue to insert order items
 	for _, item := range order.LineItems {
-		sql, args, err = d.pg.Builder.
-			Update(`"order".line_items`).
-			Set("item_status", item.ItemStatus).
-			Set("updated", time.Now()).
-			Where("id = ?", item.ID).
-			ToSql()
-		if err != nil {
-			return nil, tx.Rollback(ctx)
-		}
+		err = qtx.UpdateItemLine(ctx, postgresql.UpdateItemLineParams{
+			ID:         item.ID,
+			ItemStatus: int32(item.ItemStatus),
+			Updated: sql.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			},
+		})
 
-		_, err = d.pg.Pool.Exec(ctx, sql, args...)
 		if err != nil {
-			return nil, tx.Rollback(ctx)
+			return nil, errors.Wrap(err, "qtx.UpdateItemLine(ctx, postgresql.UpdateItemLineParams{})")
 		}
 	}
 
-	return order, tx.Commit(ctx)
+	return nil, tx.Commit()
 }

@@ -5,17 +5,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/samber/lo"
-	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	events "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 )
 
 type Order struct {
 	shared.AggregateRoot
-	ID              uuid.UUID          `json:"id" db:"id"`
-	OrderSource     shared.OrderSource `json:"order_source" db:"order_source"`
-	LoyaltyMemberID uuid.UUID          `json:"loyalty_member_id" db:"loyalty_member_id"`
-	OrderStatus     shared.Status      `json:"order_status" db:"order_status"`
-	Location        shared.Location    `json:"location" db:"location"`
+	ID              uuid.UUID
+	OrderSource     shared.OrderSource
+	LoyaltyMemberID uuid.UUID
+	OrderStatus     shared.Status
+	Location        shared.Location
 	LineItems       []*LineItem
 }
 
@@ -58,7 +58,7 @@ func CreateOrderFrom(
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), shared.StatusInProcess, true)
 
-				event := event.BaristaOrdered{
+				event := events.BaristaOrdered{
 					OrderID:    order.ID,
 					ItemLineID: lineItem.ID,
 					ItemType:   item.ItemType,
@@ -89,7 +89,7 @@ func CreateOrderFrom(
 			if ok {
 				lineItem := NewLineItem(item.ItemType, item.ItemType.String(), float32(find.Price), shared.StatusInProcess, false)
 
-				event := event.KitchenOrdered{
+				event := events.KitchenOrdered{
 					OrderID:    order.ID,
 					ItemLineID: lineItem.ID,
 					ItemType:   item.ItemType,
@@ -109,7 +109,7 @@ func CreateOrderFrom(
 	return order, nil
 }
 
-func (o *Order) Apply(event *event.OrderUp) error {
+func (o *Order) Apply(event *events.OrderUp) error {
 	if len(o.LineItems) == 0 {
 		return nil // we dont do anything
 	}

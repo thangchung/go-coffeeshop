@@ -53,7 +53,71 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 	return i, err
 }
 
-const getOrderByID = `-- name: GetOrderByID :many
+const getAll = `-- name: GetAll :many
+
+SELECT
+    o.id,
+    order_source,
+    loyalty_member_id,
+    order_status,
+    l.id as "line_item_id",
+    item_type,
+    name,
+    price,
+    item_status,
+    is_barista_order
+FROM "order".orders o
+    LEFT JOIN "order".line_items l ON o.id = l.order_id
+`
+
+type GetAllRow struct {
+	ID              uuid.UUID
+	OrderSource     int32
+	LoyaltyMemberID uuid.UUID
+	OrderStatus     int32
+	LineItemID      uuid.NullUUID
+	ItemType        int32
+	Name            string
+	Price           string
+	ItemStatus      int32
+	IsBaristaOrder  bool
+}
+
+func (q *Queries) GetAll(ctx context.Context) ([]GetAllRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAll)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllRow
+	for rows.Next() {
+		var i GetAllRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderSource,
+			&i.LoyaltyMemberID,
+			&i.OrderStatus,
+			&i.LineItemID,
+			&i.ItemType,
+			&i.Name,
+			&i.Price,
+			&i.ItemStatus,
+			&i.IsBaristaOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getByID = `-- name: GetByID :many
 
 SELECT
     o.id,
@@ -71,7 +135,7 @@ FROM "order".orders o
 WHERE o.id = $1
 `
 
-type GetOrderByIDRow struct {
+type GetByIDRow struct {
 	ID              uuid.UUID
 	OrderSource     int32
 	LoyaltyMemberID uuid.UUID
@@ -84,15 +148,15 @@ type GetOrderByIDRow struct {
 	IsBaristaOrder  bool
 }
 
-func (q *Queries) GetOrderByID(ctx context.Context, id uuid.UUID) ([]GetOrderByIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getOrderByID, id)
+func (q *Queries) GetByID(ctx context.Context, id uuid.UUID) ([]GetByIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getByID, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetOrderByIDRow
+	var items []GetByIDRow
 	for rows.Next() {
-		var i GetOrderByIDRow
+		var i GetByIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrderSource,
@@ -172,70 +236,6 @@ func (q *Queries) InsertItemLine(ctx context.Context, arg InsertItemLineParams) 
 		&i.Updated,
 	)
 	return i, err
-}
-
-const listOrders = `-- name: ListOrders :many
-
-SELECT
-    o.id,
-    order_source,
-    loyalty_member_id,
-    order_status,
-    l.id as "line_item_id",
-    item_type,
-    name,
-    price,
-    item_status,
-    is_barista_order
-FROM "order".orders o
-    LEFT JOIN "order".line_items l ON o.id = l.order_id
-`
-
-type ListOrdersRow struct {
-	ID              uuid.UUID
-	OrderSource     int32
-	LoyaltyMemberID uuid.UUID
-	OrderStatus     int32
-	LineItemID      uuid.NullUUID
-	ItemType        int32
-	Name            string
-	Price           string
-	ItemStatus      int32
-	IsBaristaOrder  bool
-}
-
-func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
-	rows, err := q.db.QueryContext(ctx, listOrders)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListOrdersRow
-	for rows.Next() {
-		var i ListOrdersRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.OrderSource,
-			&i.LoyaltyMemberID,
-			&i.OrderStatus,
-			&i.LineItemID,
-			&i.ItemType,
-			&i.Name,
-			&i.Price,
-			&i.ItemStatus,
-			&i.IsBaristaOrder,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const updateItemLine = `-- name: UpdateItemLine :exec

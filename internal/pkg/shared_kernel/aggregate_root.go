@@ -1,19 +1,5 @@
 package sharedkernel
 
-import (
-	"context"
-	"time"
-)
-
-type DomainEvent interface {
-	CreateAt() time.Time
-	Identity() string
-}
-
-type EventPublisher interface {
-	Publish(context.Context, []DomainEvent) error
-}
-
 type AggregateRoot struct {
 	domainEvents []DomainEvent
 }

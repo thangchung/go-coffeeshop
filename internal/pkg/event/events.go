@@ -46,6 +46,7 @@ func (e BaristaOrderUpdated) Identity() string {
 }
 
 type KitchenOrderUpdated struct {
+	shared.DomainEvent
 	OrderID    uuid.UUID       `json:"orderId"`
 	ItemLineID uuid.UUID       `json:"itemLineId"`
 	Name       string          `json:"name"`

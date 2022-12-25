@@ -12,11 +12,10 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgconsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
@@ -42,11 +41,11 @@ func (a *App) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// postgresdb.
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
+	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
 	if err != nil {
-		slog.Error("failed to create a new Postgres", err)
-
 		cancel()
+
+		slog.Error("failed to create a new Postgres", err)
 
 		return err
 	}
@@ -76,19 +75,16 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
 
-	// repository.
-	orderRepo := repo.NewOrderRepo(pg)
-
 	// event handlers.
-	a.handler = eventhandlers.NewKitchenOrderedEventHandler(orderRepo, counterOrderPub)
+	a.handler = eventhandlers.NewKitchenOrderedEventHandler(pg, counterOrderPub)
 
 	// consumers.
-	consumer, err := consumer.NewConsumer(
+	consumer, err := pkgconsumer.NewConsumer(
 		amqpConn,
-		consumer.ExchangeName("kitchen-order-exchange"),
-		consumer.QueueName("kitchen-order-queue"),
-		consumer.BindingKey("kitchen-order-routing-key"),
-		consumer.ConsumerTag("kitchen-order-consumer"),
+		pkgconsumer.ExchangeName("kitchen-order-exchange"),
+		pkgconsumer.QueueName("kitchen-order-queue"),
+		pkgconsumer.BindingKey("kitchen-order-routing-key"),
+		pkgconsumer.ConsumerTag("kitchen-order-consumer"),
 	)
 
 	if err != nil {
@@ -133,7 +129,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 				slog.Error("failed to Unmarshal message", err)
 			}
 
-			err = c.handler.Handle(ctx, &payload)
+			err = c.handler.Handle(ctx, payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {

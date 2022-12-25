@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 )
 
 type (
@@ -17,13 +16,5 @@ type (
 
 	ProductDomainService interface {
 		GetItemsByType(context.Context, *PlaceOrderModel, bool) ([]*ItemModel, error)
-	}
-
-	BaristaOrderUpdatedEventHandler interface {
-		Handle(context.Context, *event.BaristaOrderUpdated) error
-	}
-
-	KitchenOrderUpdatedEventHandler interface {
-		Handle(context.Context, *event.KitchenOrderUpdated) error
 	}
 )

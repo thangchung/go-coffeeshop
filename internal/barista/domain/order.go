@@ -10,12 +10,12 @@ import (
 
 type BaristaOrder struct {
 	shared.AggregateRoot
-	ID       uuid.UUID       `json:"id" db:"id"`
-	ItemName string          `json:"itemName" db:"item_name"`
-	ItemType shared.ItemType `json:"itemType" db:"item_type"`
-	TimeUp   time.Time       `json:"timeUp" db:"time_up"`
-	Created  time.Time       `json:"created" db:"created"`
-	Updated  time.Time       `json:"updated" db:"updated"`
+	ID       uuid.UUID
+	ItemName string
+	ItemType shared.ItemType
+	TimeUp   time.Time
+	Created  time.Time
+	Updated  time.Time
 }
 
 func NewBaristaOrder(e event.BaristaOrdered) BaristaOrder {
@@ -35,7 +35,7 @@ func NewBaristaOrder(e event.BaristaOrdered) BaristaOrder {
 		Updated:  time.Now(),
 	}
 
-	orderUpdateEvent := event.BaristaOrderUpdated{
+	orderUpdatedEvent := event.BaristaOrderUpdated{
 		OrderID:    e.OrderID,
 		ItemLineID: e.ItemLineID,
 		Name:       e.ItemType.String(),
@@ -45,7 +45,7 @@ func NewBaristaOrder(e event.BaristaOrdered) BaristaOrder {
 		TimeUp:     timeUp,
 	}
 
-	order.ApplyDomain(orderUpdateEvent)
+	order.ApplyDomain(orderUpdatedEvent)
 
 	return order
 }

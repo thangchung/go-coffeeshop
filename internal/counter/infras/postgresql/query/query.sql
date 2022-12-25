@@ -1,4 +1,4 @@
--- name: ListOrders :many
+-- name: GetAll :many
 
 SELECT
     o.id,
@@ -14,7 +14,7 @@ SELECT
 FROM "order".orders o
     LEFT JOIN "order".line_items l ON o.id = l.order_id;
 
--- name: GetOrderByID :many
+-- name: GetByID :many
 
 SELECT
     o.id,

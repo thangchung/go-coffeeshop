@@ -40,18 +40,8 @@ func (a *App) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// PostgresDB
-	// pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
-	// if err != nil {
-	// 	slog.Error("failed to create a new Postgres", err, err.Error())
-
-	// 	cancel()
-
-	// 	return err
-	// }
-	// defer pg.Close()
-
-	pg, err := postgres.NewPostgreSQLDb(a.cfg.PG.DsnURL)
+	// postgresdb.
+	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
 	if err != nil {
 		cancel()
 
@@ -59,9 +49,9 @@ func (a *App) Run() error {
 
 		return err
 	}
-	defer pg.CloseDB()
+	defer pg.Close()
 
-	// rabbitmq
+	// rabbitmq.
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
 	if err != nil {
 		cancel()

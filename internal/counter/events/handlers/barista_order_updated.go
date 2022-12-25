@@ -1,10 +1,11 @@
-package eventhandlers
+package handlers
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
+	"github.com/thangchung/go-coffeeshop/internal/counter/events"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 )
 
@@ -12,9 +13,9 @@ type baristaOrderUpdatedEventHandler struct {
 	orderRepo domain.OrderRepo
 }
 
-var _ domain.BaristaOrderUpdatedEventHandler = (*baristaOrderUpdatedEventHandler)(nil)
+var _ events.BaristaOrderUpdatedEventHandler = (*baristaOrderUpdatedEventHandler)(nil)
 
-func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) domain.BaristaOrderUpdatedEventHandler {
+func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) events.BaristaOrderUpdatedEventHandler {
 	return &baristaOrderUpdatedEventHandler{
 		orderRepo: orderRepo,
 	}
@@ -23,7 +24,7 @@ func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) domain.Baris
 func (h *baristaOrderUpdatedEventHandler) Handle(ctx context.Context, e *event.BaristaOrderUpdated) error {
 	order, err := h.orderRepo.GetByID(ctx, e.OrderID)
 	if err != nil {
-		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-h.orderRepo.GetOrderByID(ctx, e.OrderID): %w", err)
+		return errors.Wrap(err, "orderRepo.GetByID")
 	}
 
 	orderUp := event.OrderUp{
@@ -36,12 +37,12 @@ func (h *baristaOrderUpdatedEventHandler) Handle(ctx context.Context, e *event.B
 	}
 
 	if err = order.Apply(&orderUp); err != nil {
-		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-order.Apply(e): %w", err)
+		return errors.Wrap(err, "order.Apply")
 	}
 
 	_, err = h.orderRepo.Update(ctx, order)
 	if err != nil {
-		return fmt.Errorf("NewBaristaOrderUpdatedEventHandler-Handle-h.orderRepo.Update(ctx, ToDto(order)): %w", err)
+		return errors.Wrap(err, "orderRepo.Update")
 	}
 
 	return nil

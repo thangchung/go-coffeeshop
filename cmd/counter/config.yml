@@ -8,9 +8,9 @@ http:
 
 postgres:
   pool_max: 2
-  url: postgres://postgres:P@ssw0rd@127.0.0.1:5432/postgres?sslmode=disable
+  dsn_url: user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
 
-rabbit_mq:
+rabbitmq:
   url: amqp://guest:guest@127.0.0.1:5672/
 
 product_client:

@@ -9,12 +9,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
-	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/internal/counter/events"
+	"github.com/thangchung/go-coffeeshop/internal/counter/events/handlers"
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
-	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	pkgevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	rabConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
@@ -28,8 +29,8 @@ type App struct {
 	cfg            *config.Config
 	network        string
 	address        string
-	baristaHandler domain.BaristaOrderUpdatedEventHandler
-	kitchenHandler domain.KitchenOrderUpdatedEventHandler
+	baristaHandler events.BaristaOrderUpdatedEventHandler
+	kitchenHandler events.KitchenOrderUpdatedEventHandler
 }
 
 func New(cfg *config.Config) *App {
@@ -45,18 +46,18 @@ func (a *App) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// PostgresDB
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
+	// postgresdb.
+	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
 	if err != nil {
-		slog.Error("failed to create new instance of postgres", err)
-
 		cancel()
+
+		slog.Error("failed to create a new Postgres", err)
 
 		return err
 	}
 	defer pg.Close()
 
-	// RabbitMQ
+	// rabbitmq.
 	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
 	if err != nil {
 		slog.Error("failed to create a new RabbitMQConn", err)
@@ -67,7 +68,7 @@ func (a *App) Run() error {
 	}
 	defer amqpConn.Close()
 
-	// gRPC Client
+	// gRPC Client.
 	conn, err := grpc.Dial(a.cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		cancel()
@@ -113,8 +114,8 @@ func (a *App) Run() error {
 	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
 
 	// event publishers.
-	baristaEventPub := event.NewEventPublisher(*baristaOrderPub)
-	kitchenEventPub := event.NewEventPublisher(*kitchenOrderPub)
+	baristaEventPub := pkgevents.NewEventPublisher(*baristaOrderPub)
+	kitchenEventPub := pkgevents.NewEventPublisher(*kitchenOrderPub)
 
 	// usecases.
 	uc := orders.NewUseCase(
@@ -125,8 +126,8 @@ func (a *App) Run() error {
 	)
 
 	// event handlers.
-	a.baristaHandler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
-	a.kitchenHandler = eventhandlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
+	a.baristaHandler = handlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
+	a.kitchenHandler = handlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
 
 	// consumers
 	consumer, err := rabConsumer.NewConsumer(
@@ -187,7 +188,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 
 		switch delivery.Type {
 		case "barista-order-updated":
-			var payload event.BaristaOrderUpdated
+			var payload sharedevents.BaristaOrderUpdated
 
 			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
@@ -209,7 +210,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 				}
 			}
 		case "kitchen-order-updated":
-			var payload event.KitchenOrderUpdated
+			var payload sharedevents.KitchenOrderUpdated
 
 			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {

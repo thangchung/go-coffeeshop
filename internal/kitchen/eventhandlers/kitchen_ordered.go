@@ -2,94 +2,78 @@ package eventhandlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/domain"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
-	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
+	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
-type KitchenOrderedEventHandler interface {
-	Handle(context.Context, *event.KitchenOrdered) error
-}
-
 var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
 
 type kitchenOrderedEventHandler struct {
-	repo       domain.OrderRepo
+	pg         *postgres.Postgres
 	counterPub *publisher.Publisher
 }
 
 func NewKitchenOrderedEventHandler(
-	repo domain.OrderRepo,
+	pg *postgres.Postgres,
 	counterPub *publisher.Publisher,
 ) KitchenOrderedEventHandler {
 	return &kitchenOrderedEventHandler{
-		repo:       repo,
+		pg:         pg,
 		counterPub: counterPub,
 	}
 }
 
-func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e *event.KitchenOrdered) error {
+func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e event.KitchenOrdered) error {
 	slog.Info("kitchenOrderedEventHandler-Handle", "KitchenOrdered", e)
 
-	timeIn := time.Now()
+	order := domain.NewKitchenOrder(e)
 
-	delay := calculateDelay(e.ItemType)
-	time.Sleep(delay)
+	querier := postgresql.New(h.pg.DB)
 
-	timeUp := time.Now().Add(delay)
+	tx, err := h.pg.DB.Begin()
+	if err != nil {
+		return errors.Wrap(err, "kitchenOrderedEventHandler.Handle")
+	}
 
-	err := h.repo.Create(ctx, &domain.KitchenOrder{
-		ID:       e.ItemLineID,
+	qtx := querier.WithTx(tx)
+
+	_, err = qtx.CreateOrder(ctx, postgresql.CreateOrderParams{
+		ID:       order.ID,
 		OrderID:  e.OrderID,
-		ItemType: e.ItemType,
-		ItemName: e.ItemType.String(),
-		TimeUp:   timeUp,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+		ItemType: int32(order.ItemType),
+		ItemName: order.ItemName,
+		TimeUp:   order.TimeUp,
+		Created:  order.Created,
+		Updated: sql.NullTime{
+			Time:  order.Updated,
+			Valid: true,
+		},
 	})
 	if err != nil {
-		return errors.Wrap(err, "kitchenOrderedEventHandler-h.repo.Create")
+		slog.Info("failed to call to repo", "error", err)
+
+		return errors.Wrap(err, "kitchenOrderedEventHandler-querier.CreateOrder")
 	}
 
-	message := event.KitchenOrderUpdated{
-		OrderID:    e.OrderID,
-		ItemLineID: e.ItemLineID,
-		Name:       e.ItemType.String(),
-		ItemType:   e.ItemType,
-		MadeBy:     "teesee",
-		TimeIn:     timeIn,
-		TimeUp:     timeUp,
+	// todo: it might cause dual-write problem, but we accept it temporary
+	for _, event := range order.DomainEvents() {
+		eventBytes, err := json.Marshal(event)
+		if err != nil {
+			return errors.Wrap(err, "json.Marshal[event]")
+		}
+
+		if err := h.counterPub.Publish(ctx, eventBytes, "text/plain"); err != nil {
+			return errors.Wrap(err, "counterPub.Publish")
+		}
 	}
 
-	eventBytes, err := json.Marshal(message)
-	if err != nil {
-		return errors.Wrap(err, "json.Marshal-events.KitchenOrderUpdated")
-	}
-
-	if err := h.counterPub.Publish(ctx, eventBytes, "text/plain"); err != nil {
-		return errors.Wrap(err, "KitchenOrderedEventHandler-Publish")
-	}
-
-	return nil
-}
-
-func calculateDelay(itemType shared.ItemType) time.Duration {
-	switch itemType {
-	case shared.ItemTypeCroissant:
-		return 7 * time.Second
-	case shared.ItemTypeCroissantChocolate:
-		return 7 * time.Second
-	case shared.ItemTypeCakePop:
-		return 5 * time.Second
-	case shared.ItemTypeMuffin:
-		return 7 * time.Second
-	default:
-		return 3 * time.Second
-	}
+	return tx.Commit()
 }
