@@ -17,10 +17,12 @@ Other version can be found at:
     - [pq](github.com/lib/pq)
   - [golang-migrate/migrate/v4](https://github.com/golang-migrate/migrate)
   - Utils
+    - [google/wire](github.com/google/wire)
     - [ilyakaznacheev/cleanenv](https://github.com/ilyakaznacheev/cleanenv)
     - golang.org/x/exp/slog
       - [sirupsen/logrus](https://github.com/sirupsen/logrus)
     - [samber/lo](https://github.com/samber/lo)
+    - [automaxprocs/maxprocs](go.uber.org/automaxprocs/maxprocs)
     - golang/glog
     - google/uuid
     - google.golang.org/genproto
@@ -89,7 +91,7 @@ The details of how to run it can be find at [deployment with Nomad, Consult Conn
 
 ## Roadmap
 
-- Enhance project structure with DDD patterns: DONE
+- ✅ Enhance project structure with DDD patterns
 - Add testing
 - Add and integrate with observability libs and tools
 - Add user identity management (authentication and authorization)

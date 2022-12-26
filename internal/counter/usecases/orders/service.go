@@ -2,19 +2,20 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"golang.org/x/exp/slog"
 )
 
 type usecase struct {
 	orderRepo        domain.OrderRepo
 	productDomainSvc domain.ProductDomainService
-	baristaEventPub  shared.EventPublisher
-	kitchenEventPub  shared.EventPublisher
+	baristaEventPub  rabbitmq.EventPublisher
+	kitchenEventPub  rabbitmq.EventPublisher
 }
 
 var _ UseCase = (*usecase)(nil)
@@ -22,8 +23,8 @@ var _ UseCase = (*usecase)(nil)
 func NewUseCase(
 	orderRepo domain.OrderRepo,
 	productDomainSvc domain.ProductDomainService,
-	baristaEventPub shared.EventPublisher,
-	kitchenEventPub shared.EventPublisher,
+	baristaEventPub rabbitmq.EventPublisher,
+	kitchenEventPub rabbitmq.EventPublisher,
 ) UseCase {
 	return &usecase{
 		orderRepo:        orderRepo,
@@ -55,27 +56,25 @@ func (uc *usecase) PlaceOrder(ctx context.Context, model *domain.PlaceOrderModel
 
 	slog.Debug("order created", "order", *order)
 
-	baristaEvents := make([]shared.DomainEvent, 0)
-	kitchenEvents := make([]shared.DomainEvent, 0)
-
+	// todo: it might cause dual-write problem, but we accept it temporary
 	for _, event := range order.DomainEvents() {
 		if event.Identity() == "BaristaOrdered" {
-			baristaEvents = append(baristaEvents, event)
+			eventBytes, err := json.Marshal(event)
+			if err != nil {
+				return errors.Wrap(err, "json.Marshal[event]")
+			}
+
+			uc.baristaEventPub.Publish(ctx, eventBytes, "text/plain")
 		}
 
 		if event.Identity() == "KitchenOrdered" {
-			kitchenEvents = append(kitchenEvents, event)
+			eventBytes, err := json.Marshal(event)
+			if err != nil {
+				return errors.Wrap(err, "json.Marshal[event]")
+			}
+
+			uc.kitchenEventPub.Publish(ctx, eventBytes, "text/plain")
 		}
-	}
-
-	err = uc.baristaEventPub.Publish(ctx, baristaEvents)
-	if err != nil {
-		return errors.Wrap(err, "usecase-baristaEventPub.Publish")
-	}
-
-	err = uc.kitchenEventPub.Publish(ctx, kitchenEvents)
-	if err != nil {
-		return errors.Wrap(err, "usecase-kitchenEventPub.Publish")
 	}
 
 	return nil

@@ -41,7 +41,7 @@ type BaristaOrderUpdated struct {
 	TimeUp     time.Time       `json:"timeUp"`
 }
 
-func (e BaristaOrderUpdated) Identity() string {
+func (e *BaristaOrderUpdated) Identity() string {
 	return "BaristaOrderUpdated"
 }
 
@@ -56,7 +56,7 @@ type KitchenOrderUpdated struct {
 	TimeUp     time.Time       `json:"timeUp"`
 }
 
-func (e KitchenOrderUpdated) Identity() string {
+func (e *KitchenOrderUpdated) Identity() string {
 	return "KitchenOrderUpdated"
 }
 
@@ -69,6 +69,6 @@ type OrderUp struct {
 	MadeBy     string          `json:"madeBy"`
 }
 
-func (e OrderUp) Identity() string {
+func (e *OrderUp) Identity() string {
 	return "OrderUp"
 }

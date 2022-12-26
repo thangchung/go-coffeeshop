@@ -44,7 +44,7 @@ func NewRabbitMQConn(rabbitMqURL string) (*amqp.Connection, error) {
 		continue
 	}
 
-	slog.Info("Connected to RabbitMQ!")
+	slog.Info("📫 connected to rabbitmq 🎉")
 
 	return amqpConn, nil
 }

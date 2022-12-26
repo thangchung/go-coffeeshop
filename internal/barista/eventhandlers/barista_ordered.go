@@ -5,23 +5,26 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/barista/domain"
 	"github.com/thangchung/go-coffeeshop/internal/barista/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"golang.org/x/exp/slog"
 )
+
+var BaristaOrderedEventHandlerSet = wire.NewSet(NewBaristaOrderedEventHandler)
 
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
 
 type baristaOrderedEventHandler struct {
 	pg         *postgres.Postgres
-	counterPub *publisher.Publisher
+	counterPub rabbitmq.EventPublisher
 }
 
-func NewBaristaOrderedEventHandler(pg *postgres.Postgres, counterPub *publisher.Publisher) BaristaOrderedEventHandler {
+func NewBaristaOrderedEventHandler(pg *postgres.Postgres, counterPub rabbitmq.EventPublisher) BaristaOrderedEventHandler {
 	return &baristaOrderedEventHandler{
 		pg:         pg,
 		counterPub: counterPub,

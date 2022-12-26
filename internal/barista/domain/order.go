@@ -45,7 +45,7 @@ func NewBaristaOrder(e event.BaristaOrdered) BaristaOrder {
 		TimeUp:     timeUp,
 	}
 
-	order.ApplyDomain(orderUpdatedEvent)
+	order.ApplyDomain(&orderUpdatedEvent)
 
 	return order
 }

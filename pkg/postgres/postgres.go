@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"golang.org/x/exp/slog"
-
-	_ "github.com/lib/pq"
 )
 
 const (
@@ -47,6 +45,8 @@ func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
 
 		pg.connAttempts--
 	}
+
+	slog.Info("📰 connected to postgresdb 🎉")
 
 	return pg, nil
 }

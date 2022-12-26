@@ -14,7 +14,6 @@ import (
 	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
-	pkgevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
@@ -113,16 +112,12 @@ func (a *App) Run() error {
 	// domain service
 	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
 
-	// event publishers.
-	baristaEventPub := pkgevents.NewEventPublisher(*baristaOrderPub)
-	kitchenEventPub := pkgevents.NewEventPublisher(*kitchenOrderPub)
-
 	// usecases.
 	uc := orders.NewUseCase(
 		orderRepo,
 		productDomainSvc,
-		baristaEventPub,
-		kitchenEventPub,
+		baristaOrderPub,
+		kitchenOrderPub,
 	)
 
 	// event handlers.

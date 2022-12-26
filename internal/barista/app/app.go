@@ -10,38 +10,22 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
-type App struct {
-	cfg     *config.Config
-	network string
-	address string
-	handler eventhandlers.BaristaOrderedEventHandler
-}
-
-func New(cfg *config.Config) *App {
-	return &App{
-		cfg:     cfg,
-		network: "tcp",
-		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
-	}
-}
-
-func (a *App) Run() error {
-	slog.Info("init app", "name", a.cfg.Name, "version", a.cfg.Version)
-
-	ctx, cancel := context.WithCancel(context.Background())
+func Run(ctx context.Context, cancel context.CancelFunc, cfg *config.Config) error {
+	slog.Info("⚡ init app", "name", cfg.Name, "version", cfg.Version)
 
 	// postgresdb.
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
+	pg, err := postgres.NewPostgresDB(cfg.PG.DsnURL)
 	if err != nil {
 		cancel()
 
@@ -52,7 +36,7 @@ func (a *App) Run() error {
 	defer pg.Close()
 
 	// rabbitmq.
-	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
+	amqpConn, err := rabbitmq.NewRabbitMQConn(cfg.RabbitMQ.URL)
 	if err != nil {
 		cancel()
 
@@ -62,12 +46,12 @@ func (a *App) Run() error {
 	}
 	defer amqpConn.Close()
 
-	// publishers
-	counterOrderPub, err := publisher.NewPublisher(
+	// publishers.
+	counterOrderPub, err := pkgPublisher.NewPublisher(
 		amqpConn,
-		publisher.ExchangeName("counter-order-exchange"),
-		publisher.BindingKey("counter-order-routing-key"),
-		publisher.MessageTypeName("barista-order-updated"),
+		pkgPublisher.ExchangeName("counter-order-exchange"),
+		pkgPublisher.BindingKey("counter-order-routing-key"),
+		pkgPublisher.MessageTypeName("barista-order-updated"),
 	)
 	defer counterOrderPub.CloseChan()
 
@@ -77,24 +61,32 @@ func (a *App) Run() error {
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
 
-	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderedEventHandler(pg, counterOrderPub)
-
-	// consumers
-	consumer, err := consumer.NewConsumer(
+	// consumers.
+	consumer, err := pkgConsumer.NewConsumer(
 		amqpConn,
-		consumer.ExchangeName("barista-order-exchange"),
-		consumer.QueueName("barista-order-queue"),
-		consumer.BindingKey("barista-order-routing-key"),
-		consumer.ConsumerTag("barista-order-consumer"),
+		pkgConsumer.ExchangeName("barista-order-exchange"),
+		pkgConsumer.QueueName("barista-order-queue"),
+		pkgConsumer.BindingKey("barista-order-routing-key"),
+		pkgConsumer.ConsumerTag("barista-order-consumer"),
 	)
 	if err != nil {
 		slog.Error("failed to create a new OrderConsumer", err)
 		cancel()
 	}
 
+	a, err := InitApp(cfg, pg, amqpConn, counterOrderPub, consumer)
+	if err != nil {
+		slog.Error("failed init app", err)
+		cancel()
+	}
+
+	// event handlers.
+	a.handler = eventhandlers.NewBaristaOrderedEventHandler(pg, counterOrderPub)
+
+	slog.Info("🌏 start server...", "address", fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port))
+
 	go func() {
-		err := consumer.StartConsumer(a.worker)
+		err := a.consumer.StartConsumer(a.worker)
 		if err != nil {
 			slog.Error("failed to start Consumer", err)
 			cancel()
@@ -111,9 +103,40 @@ func (a *App) Run() error {
 		slog.Info("ctx.Done", done)
 	}
 
-	slog.Info("start server...", "address", a.address)
-
 	return nil
+}
+
+type App struct {
+	cfg *config.Config
+
+	pg       *postgres.Postgres
+	amqpConn *amqp.Connection
+
+	counterOrderPub rabbitmq.EventPublisher
+	consumer        *pkgConsumer.Consumer
+
+	handler eventhandlers.BaristaOrderedEventHandler
+}
+
+func New(
+	cfg *config.Config,
+	pg *postgres.Postgres,
+	amqpConn *amqp.Connection,
+	counterOrderPub rabbitmq.EventPublisher,
+	consumer *pkgConsumer.Consumer,
+	handler eventhandlers.BaristaOrderedEventHandler,
+) *App {
+	return &App{
+		cfg: cfg,
+
+		pg:       pg,
+		amqpConn: amqpConn,
+
+		counterOrderPub: counterOrderPub,
+		consumer:        consumer,
+
+		handler: handler,
+	}
 }
 
 func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
@@ -124,8 +147,8 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 		switch delivery.Type {
 		case "barista-order-created":
 			var payload event.BaristaOrdered
-			err := json.Unmarshal(delivery.Body, &payload)
 
+			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
 				slog.Error("failed to Unmarshal", err)
 			}

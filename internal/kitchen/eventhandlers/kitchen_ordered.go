@@ -10,7 +10,7 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"golang.org/x/exp/slog"
 )
 
@@ -18,12 +18,12 @@ var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
 
 type kitchenOrderedEventHandler struct {
 	pg         *postgres.Postgres
-	counterPub *publisher.Publisher
+	counterPub rabbitmq.EventPublisher
 }
 
 func NewKitchenOrderedEventHandler(
 	pg *postgres.Postgres,
-	counterPub *publisher.Publisher,
+	counterPub rabbitmq.EventPublisher,
 ) KitchenOrderedEventHandler {
 	return &kitchenOrderedEventHandler{
 		pg:         pg,

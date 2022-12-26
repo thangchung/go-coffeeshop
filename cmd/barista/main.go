@@ -1,18 +1,28 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/sirupsen/logrus"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/app"
 	"github.com/thangchung/go-coffeeshop/pkg/logger"
+	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
+	// set GOMAXPROCS
+	_, err := maxprocs.Set()
+	if err != nil {
+		slog.Error("failed set max procs", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	cfg, err := config.NewConfig()
 	if err != nil {
 		slog.Error("failed get config", err)
@@ -26,9 +36,8 @@ func main() {
 	// integrate Logrus with the slog logger
 	slog.New(logger.NewLogrusHandler(logrus.StandardLogger()))
 
-	a := app.New(cfg)
-	if err = a.Run(); err != nil {
+	if err = app.Run(ctx, cancel, cfg); err != nil {
 		slog.Error("failed app run", err)
-		os.Exit(1)
+		cancel()
 	}
 }

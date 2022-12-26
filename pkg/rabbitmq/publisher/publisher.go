@@ -2,11 +2,13 @@ package publisher
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"golang.org/x/exp/slog"
 )
 
@@ -19,21 +21,23 @@ const (
 	_messageTypeName = "ordered"
 )
 
-type Publisher struct {
+type publisher struct {
 	exchangeName, bindingKey string
 	messageTypeName          string
 	amqpChan                 *amqp.Channel
 	amqpConn                 *amqp.Connection
 }
 
-func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (*Publisher, error) {
+var _ rabbitmq.EventPublisher = (*publisher)(nil)
+
+func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (rabbitmq.EventPublisher, error) {
 	ch, err := amqpConn.Channel()
 	if err != nil {
 		panic(err)
 	}
 	defer ch.Close()
 
-	pub := &Publisher{
+	pub := &publisher{
 		amqpConn:        amqpConn,
 		amqpChan:        ch,
 		exchangeName:    _exchangeName,
@@ -49,14 +53,30 @@ func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (*Publisher, error)
 }
 
 // CloseChan Close messages chan.
-func (p *Publisher) CloseChan() {
+func (p *publisher) CloseChan() {
 	if err := p.amqpChan.Close(); err != nil {
 		slog.Error("failed to close chan", err)
 	}
 }
 
+func (p *publisher) PublishEvents(ctx context.Context, events []any) error {
+	for _, e := range events {
+		b, err := json.Marshal(e)
+		if err != nil {
+			return errors.Wrap(err, "publisher-json.Marshal")
+		}
+
+		err = p.Publish(ctx, b, "text/plain")
+		if err != nil {
+			return errors.Wrap(err, "publisher-pub.Publish")
+		}
+	}
+
+	return nil
+}
+
 // Publish message.
-func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string) error {
+func (p *publisher) Publish(ctx context.Context, body []byte, contentType string) error {
 	ch, err := p.amqpConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "CreateChannel")

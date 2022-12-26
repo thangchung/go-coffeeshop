@@ -47,7 +47,7 @@ func NewKitchenOrder(e event.KitchenOrdered) KitchenOrder {
 		TimeUp:     timeUp,
 	}
 
-	order.ApplyDomain(orderUpdatedEvent)
+	order.ApplyDomain(&orderUpdatedEvent)
 
 	return order
 }

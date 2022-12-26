@@ -20,9 +20,3 @@ RUN BIN="/usr/local/bin" \
     && curl -L "https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz" | tar xvz \
     && mv migrate "${BIN}/migrate" \
     && chmod +x "${BIN}/migrate"
-
-# Install sqlc
-RUN BIN="/usr/local/bin" \
-    && curl -L "https://github.com/kyleconroy/sqlc/releases/download/v1.16.0/sqlc_1.16.0_linux_amd64.tar.gz" | tar xvz \
-    && mv sqlc "${BIN}/sqlc" \
-    && chmod +x "${BIN}/sqlc"

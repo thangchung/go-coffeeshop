@@ -14,7 +14,7 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	pkgRabbitMQ "github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	pkgconsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
@@ -52,7 +52,7 @@ func (a *App) Run() error {
 	defer pg.Close()
 
 	// rabbitmq.
-	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
+	amqpConn, err := pkgRabbitMQ.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
 	if err != nil {
 		cancel()
 
