@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	"github.com/thangchung/go-coffeeshop/internal/counter/events"
@@ -14,6 +15,8 @@ type kitchenOrderUpdatedEventHandler struct {
 }
 
 var _ events.KitchenOrderUpdatedEventHandler = (*kitchenOrderUpdatedEventHandler)(nil)
+
+var KitchenOrderUpdatedEventHandlerSet = wire.NewSet(NewKitchenOrderUpdatedEventHandler)
 
 func NewKitchenOrderUpdatedEventHandler(orderRepo domain.OrderRepo) events.KitchenOrderUpdatedEventHandler {
 	return &kitchenOrderUpdatedEventHandler{

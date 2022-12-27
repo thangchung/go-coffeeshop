@@ -3,10 +3,13 @@ package repo
 import (
 	"context"
 
+	"github.com/google/wire"
 	"github.com/thangchung/go-coffeeshop/internal/product/domain"
 )
 
 var _ domain.ProductRepo = (*productInMemRepo)(nil)
+
+var RepositorySet = wire.NewSet(NewOrderRepo)
 
 type productInMemRepo struct {
 	itemTypes map[string]*domain.ItemTypeDto

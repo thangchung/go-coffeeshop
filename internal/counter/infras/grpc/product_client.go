@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
+	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	gen "github.com/thangchung/go-coffeeshop/proto/gen"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type productGRPCClient struct {
@@ -19,10 +22,17 @@ type productGRPCClient struct {
 
 var _ domain.ProductDomainService = (*productGRPCClient)(nil)
 
-func NewGRPCProductClient(conn *grpc.ClientConn) domain.ProductDomainService {
+var ProductGRPCClientSet = wire.NewSet(NewGRPCProductClient)
+
+func NewGRPCProductClient(cfg *config.Config) (domain.ProductDomainService, error) {
+	conn, err := grpc.Dial(cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+
 	return &productGRPCClient{
 		conn: conn,
-	}
+	}, nil
 }
 
 func (p *productGRPCClient) GetItemsByType(

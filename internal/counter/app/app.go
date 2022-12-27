@@ -3,186 +3,69 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net"
 
-	"github.com/pkg/errors"
-	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
+	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	"github.com/thangchung/go-coffeeshop/internal/counter/events"
-	"github.com/thangchung/go-coffeeshop/internal/counter/events/handlers"
-	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
-	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
-	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
+	ordersUC "github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
 	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
-	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/proto/gen"
 	"golang.org/x/exp/slog"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type App struct {
-	cfg            *config.Config
-	network        string
-	address        string
+	Cfg      *config.Config
+	PG       postgres.DBEngine
+	AMQPConn *amqp.Connection
+
+	BaristaOrderPub   ordersUC.BaristaEventPublisher
+	KitchenOrderPub   ordersUC.KitchenEventPublisher
+	Consumer          pkgConsumer.EventConsumer
+	ProductDomainSvc  domain.ProductDomainService
+	UC                ordersUC.UseCase
+	CounterGRPCServer gen.CounterServiceServer
+
 	baristaHandler events.BaristaOrderUpdatedEventHandler
 	kitchenHandler events.KitchenOrderUpdatedEventHandler
 }
 
-func New(cfg *config.Config) *App {
+func New(
+	cfg *config.Config,
+	pg postgres.DBEngine,
+	amqpConn *amqp.Connection,
+
+	baristaOrderPub ordersUC.BaristaEventPublisher,
+	kitchenOrderPub ordersUC.KitchenEventPublisher,
+	consumer pkgConsumer.EventConsumer,
+	productDomainSvc domain.ProductDomainService,
+	uc ordersUC.UseCase,
+	counterGRPCServer gen.CounterServiceServer,
+
+	baristaHandler events.BaristaOrderUpdatedEventHandler,
+	kitchenHandler events.KitchenOrderUpdatedEventHandler,
+) *App {
 	return &App{
-		cfg:     cfg,
-		network: "tcp",
-		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
+		Cfg: cfg,
+
+		PG:       pg,
+		AMQPConn: amqpConn,
+
+		BaristaOrderPub:   baristaOrderPub,
+		KitchenOrderPub:   kitchenOrderPub,
+		Consumer:          consumer,
+		ProductDomainSvc:  productDomainSvc,
+		UC:                uc,
+		CounterGRPCServer: counterGRPCServer,
+
+		baristaHandler: baristaHandler,
+		kitchenHandler: kitchenHandler,
 	}
 }
 
-func (a *App) Run() error {
-	slog.Info("Init app", "name", a.cfg.Name, "version", a.cfg.Version)
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// postgresdb.
-	pg, err := postgres.NewPostgresDB(postgres.DBConnString(a.cfg.PG.DsnURL))
-	if err != nil {
-		cancel()
-
-		slog.Error("failed to create a new Postgres", err)
-
-		return err
-	}
-	defer pg.Close()
-
-	// rabbitmq.
-	amqpConn, err := rabbitmq.NewRabbitMQConn(rabbitmq.RabbitMQConnStr(a.cfg.RabbitMQ.URL))
-	if err != nil {
-		slog.Error("failed to create a new RabbitMQConn", err)
-
-		cancel()
-
-		return err
-	}
-	defer amqpConn.Close()
-
-	// gRPC Client.
-	conn, err := grpc.Dial(a.cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		cancel()
-
-		return err
-	}
-	defer conn.Close()
-
-	baristaOrderPub, err := pkgPublisher.NewPublisher(
-		amqpConn,
-	)
-	if err != nil {
-		cancel()
-
-		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
-	}
-	defer baristaOrderPub.CloseChan()
-
-	baristaOrderPub.Configure(
-		pkgPublisher.ExchangeName("barista-order-exchange"),
-		pkgPublisher.BindingKey("barista-order-routing-key"),
-		pkgPublisher.MessageTypeName("barista-order-created"),
-	)
-
-	kitchenOrderPub, err := pkgPublisher.NewPublisher(
-		amqpConn,
-	)
-	if err != nil {
-		cancel()
-
-		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
-	}
-	defer kitchenOrderPub.CloseChan()
-
-	kitchenOrderPub.Configure(
-		pkgPublisher.ExchangeName("kitchen-order-exchange"),
-		pkgPublisher.BindingKey("kitchen-order-routing-key"),
-		pkgPublisher.MessageTypeName("kitchen-order-created"),
-	)
-
-	slog.Info("Order Publisher initialized")
-
-	// repository.
-	orderRepo := repo.NewOrderRepo(pg)
-
-	// domain service.
-	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
-
-	// usecases.
-	uc := orders.NewUseCase(
-		orderRepo,
-		productDomainSvc,
-		baristaOrderPub,
-		kitchenOrderPub,
-	)
-
-	// event handlers.
-	a.baristaHandler = handlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
-	a.kitchenHandler = handlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
-
-	// consumers.
-	consumer, err := pkgConsumer.NewConsumer(
-		amqpConn,
-	)
-	if err != nil {
-		slog.Error("failed to create a new consumer", err)
-	}
-
-	consumer.Configure(
-		pkgConsumer.ExchangeName("counter-order-exchange"),
-		pkgConsumer.QueueName("counter-order-queue"),
-		pkgConsumer.BindingKey("counter-order-routing-key"),
-		pkgConsumer.ConsumerTag("counter-order-consumer"),
-	)
-
-	go func() {
-		err = consumer.StartConsumer(a.worker)
-		if err != nil {
-			slog.Error("failed to start consumer: %v", err)
-			cancel()
-		}
-	}()
-
-	// gRPC Server.
-	l, err := net.Listen(a.network, a.address)
-	if err != nil {
-		slog.Error("failed to listen to address", err, "network", a.network, "address", a.address)
-
-		return err
-	}
-
-	defer func() {
-		if err := l.Close(); err != nil {
-			slog.Error("failed to close", err, "network", a.network, "address", a.address)
-		}
-	}()
-
-	server := grpc.NewServer()
-	counterGrpc.NewGRPCCounterServer(
-		server,
-		a.cfg,
-		uc,
-	)
-
-	go func() {
-		defer server.GracefulStop()
-		<-ctx.Done()
-	}()
-
-	slog.Info("start server...", "address", a.address)
-
-	return server.Serve(l)
-}
-
-func (a *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
+func (a *App) Worker(ctx context.Context, messages <-chan amqp.Delivery) {
 	for delivery := range messages {
 		slog.Info("processDeliveries", "delivery_tag", delivery.DeliveryTag)
 		slog.Info("received", "delivery_type", delivery.Type)

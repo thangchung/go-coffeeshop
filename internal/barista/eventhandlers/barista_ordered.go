@@ -15,9 +15,9 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-var BaristaOrderedEventHandlerSet = wire.NewSet(NewBaristaOrderedEventHandler)
-
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
+
+var BaristaOrderedEventHandlerSet = wire.NewSet(NewBaristaOrderedEventHandler)
 
 type baristaOrderedEventHandler struct {
 	pg         postgres.DBEngine

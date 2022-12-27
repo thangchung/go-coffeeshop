@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/domain"
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/postgresql"
@@ -14,12 +15,14 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
-
 type kitchenOrderedEventHandler struct {
 	pg         postgres.DBEngine
 	counterPub pkgPublisher.EventPublisher
 }
+
+var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
+
+var KitchenOrderedEventHandlerSet = wire.NewSet(NewKitchenOrderedEventHandler)
 
 func NewKitchenOrderedEventHandler(
 	pg postgres.DBEngine,

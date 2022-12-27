@@ -5,26 +5,34 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
+type (
+	BaristaEventPublisher pkgPublisher.EventPublisher
+	KitchenEventPublisher pkgPublisher.EventPublisher
+)
+
 type usecase struct {
 	orderRepo        domain.OrderRepo
 	productDomainSvc domain.ProductDomainService
-	baristaEventPub  pkgPublisher.EventPublisher
-	kitchenEventPub  pkgPublisher.EventPublisher
+	baristaEventPub  BaristaEventPublisher
+	kitchenEventPub  KitchenEventPublisher
 }
 
 var _ UseCase = (*usecase)(nil)
 
+var UseCaseSet = wire.NewSet(NewUseCase)
+
 func NewUseCase(
 	orderRepo domain.OrderRepo,
 	productDomainSvc domain.ProductDomainService,
-	baristaEventPub pkgPublisher.EventPublisher,
-	kitchenEventPub pkgPublisher.EventPublisher,
+	baristaEventPub BaristaEventPublisher,
+	kitchenEventPub KitchenEventPublisher,
 ) UseCase {
 	return &usecase{
 		orderRepo:        orderRepo,

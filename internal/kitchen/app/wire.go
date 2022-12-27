@@ -5,8 +5,8 @@ package app
 
 import (
 	"github.com/google/wire"
-	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
-	"github.com/thangchung/go-coffeeshop/internal/barista/eventhandlers"
+	"github.com/thangchung/go-coffeeshop/cmd/kitchen/config"
+	"github.com/thangchung/go-coffeeshop/internal/kitchen/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
@@ -24,6 +24,6 @@ func InitApp(
 		rabbitmq.RabbitMQSet,
 		pkgPublisher.EventPublisherSet,
 		pkgConsumer.EventConsumerSet,
-		eventhandlers.BaristaOrderedEventHandlerSet,
+		eventhandlers.KitchenOrderedEventHandlerSet,
 	))
 }

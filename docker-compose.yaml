@@ -70,6 +70,7 @@ services:
       APP_NAME: 'counter-service in docker'
       IN_DOCKER: "true"
       PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
+      PG_DSN_URL: user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       PRODUCT_CLIENT_URL: product:5001
     ports:
@@ -91,6 +92,7 @@ services:
       APP_NAME: 'barista-service in docker'
       IN_DOCKER: "true"
       PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
+      PG_DSN_URL: user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       postgres:
@@ -109,6 +111,7 @@ services:
       APP_NAME: 'kitchen-service in docker'
       IN_DOCKER: "true"
       PG_URL: postgres://postgres:P@ssw0rd@postgres:5432/postgres
+      PG_DSN_URL: user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       postgres:

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
@@ -23,6 +24,8 @@ type orderRepo struct {
 }
 
 var _ domain.OrderRepo = (*orderRepo)(nil)
+
+var RepositorySet = wire.NewSet(NewOrderRepo)
 
 func NewOrderRepo(pg postgres.DBEngine) domain.OrderRepo {
 	return &orderRepo{pg: pg}

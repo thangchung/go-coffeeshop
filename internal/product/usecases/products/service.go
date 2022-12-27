@@ -4,15 +4,18 @@ import (
 	"context"
 	"strings"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/product/domain"
 )
 
+var _ UseCase = (*service)(nil)
+
+var UseCaseSet = wire.NewSet(NewService)
+
 type service struct {
 	repo domain.ProductRepo
 }
-
-var _ UseCase = (*service)(nil)
 
 func NewService(repo domain.ProductRepo) UseCase {
 	return &service{

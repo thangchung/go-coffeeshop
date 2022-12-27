@@ -16,9 +16,8 @@ import (
 )
 
 type App struct {
-	Cfg *config.Config
-
-	Pg       postgres.DBEngine
+	Cfg      *config.Config
+	PG       postgres.DBEngine
 	AMQPConn *amqp.Connection
 
 	CounterOrderPub pkgPublisher.EventPublisher
@@ -36,9 +35,8 @@ func New(
 	handler eventhandlers.BaristaOrderedEventHandler,
 ) *App {
 	return &App{
-		Cfg: cfg,
-
-		Pg:       pg,
+		Cfg:      cfg,
+		PG:       pg,
 		AMQPConn: amqpConn,
 
 		CounterOrderPub: counterOrderPub,

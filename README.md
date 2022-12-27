@@ -45,20 +45,19 @@ No. | Service | URI
 1 | grpc-gateway | [http://localhost:5000](http://localhost:5000)
 2 | product service | [http://localhost:5001](http://localhost:5001)
 3 | counter service | [http://localhost:5002](http://localhost:5002)
-4 | barista service | [http://localhost:5003](http://localhost:5003)
-5 | kitchen service | [http://localhost:5004](http://localhost:5004)
-6 | web | [http://localhost:8080](http://localhost:8080)
+4 | barista service | 
+5 | kitchen service | 
+6 | web | [http://localhost:8888](http://localhost:8888)
 
 ## Starting project
 
 Jump into `.devcontainer`, then
 
 ```bash
-> docker-compose build
-> docker-compose up
+> make compose
 ```
 
-From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8080](http://localhost:8080).
+From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8888](http://localhost:8888).
 Enjoy!!!
 
 ## Screenshots
@@ -81,11 +80,25 @@ Enjoy!!!
 
 The details of how to run it can be find at [deployment with Nomad, Consult Connect and Vault](build/README.md).
 
-## Debug Apps
+## Development
+
+### Generate dependency injection instances with wire
+
+```bash
+> make wire
+```
+
+### Generate code with sqlc
+
+```bash
+> make sqlc
+```
+
+### Debug Apps
 
 [Debug golang app in monorepo](https://github.com/thangchung/go-coffeeshop/wiki/Golang#debug-app-in-monorepo)
 
-## Trouble shooting
+### Trouble shooting
 
 [Development project trouble shooting](https://github.com/thangchung/go-coffeeshop/wiki#trouble-shooting)
 

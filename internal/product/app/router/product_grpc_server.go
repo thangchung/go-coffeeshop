@@ -1,8 +1,9 @@
-package grpc
+package router
 
 import (
 	"context"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/product/usecases/products"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
@@ -10,6 +11,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+var _ gen.ProductServiceServer = (*productGRPCServer)(nil)
+
+var ProductGRPCServerSet = wire.NewSet(NewProductGRPCServer)
 
 type productGRPCServer struct {
 	gen.UnimplementedProductServiceServer
@@ -19,7 +24,7 @@ type productGRPCServer struct {
 func NewProductGRPCServer(
 	grpcServer *grpc.Server,
 	uc products.UseCase,
-) {
+) gen.ProductServiceServer {
 	svc := productGRPCServer{
 		uc: uc,
 	}
@@ -27,6 +32,8 @@ func NewProductGRPCServer(
 	gen.RegisterProductServiceServer(grpcServer, &svc)
 
 	reflection.Register(grpcServer)
+
+	return &svc
 }
 
 func (g *productGRPCServer) GetItemTypes(
