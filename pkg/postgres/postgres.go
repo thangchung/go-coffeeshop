@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/wire"
 	"golang.org/x/exp/slog"
 )
 
@@ -13,28 +14,30 @@ const (
 	_defaultConnTimeout  = time.Second
 )
 
-type Postgres struct {
+type DBConnString string
+
+type postgres struct {
 	connAttempts int
 	connTimeout  time.Duration
 
-	DB *sql.DB
+	db *sql.DB
 }
 
-func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
+var _ DBEngine = (*postgres)(nil)
+
+var DBEngineSet = wire.NewSet(NewPostgresDB)
+
+func NewPostgresDB(url DBConnString) (DBEngine, error) {
 	slog.Info("CONN", "connect string", url)
 
-	pg := &Postgres{
+	pg := &postgres{
 		connAttempts: _defaultConnAttempts,
 		connTimeout:  _defaultConnTimeout,
 	}
 
-	for _, opt := range opts {
-		opt(pg)
-	}
-
 	var err error
 	for pg.connAttempts > 0 {
-		pg.DB, err = sql.Open("postgres", url)
+		pg.db, err = sql.Open("postgres", string(url))
 		if err != nil {
 			break
 		}
@@ -51,8 +54,20 @@ func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
 	return pg, nil
 }
 
-func (p *Postgres) Close() {
-	if p.DB != nil {
-		p.DB.Close()
+func (p *postgres) Configure(opts ...Option) DBEngine {
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+func (p *postgres) GetDB() *sql.DB {
+	return p.db
+}
+
+func (p *postgres) Close() {
+	if p.db != nil {
+		p.db.Close()
 	}
 }

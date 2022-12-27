@@ -5,20 +5,18 @@ package app
 
 import (
 	"github.com/google/wire"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 )
 
 func InitApp(
 	cfg *config.Config,
-	pg *postgres.Postgres,
-	amqpConn *amqp.Connection,
-	counterOrderPub rabbitmq.EventPublisher,
-	consumer *pkgConsumer.Consumer,
+	dbConnStr postgres.DBConnString,
+	rabbitMQConnStr rabbitmq.RabbitMQConnStr,
 ) (*App, error) {
-	panic(wire.Build(New, eventhandlers.BaristaOrderedEventHandlerSet))
+	panic(wire.Build(New, postgres.DBEngineSet, rabbitmq.RabbitMQSet, pkgPublisher.EventPublisherSet, pkgConsumer.EventConsumerSet, eventhandlers.BaristaOrderedEventHandlerSet))
 }

@@ -35,13 +35,23 @@ run-web:
 	CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/web
 .PHONY: run-web
 
-compose-up:
+compose-start:
 	docker-compose up --build
-.PHONY: compose-up
+.PHONY: compose-start
 
-compose-down:
+compose-stop:
 	docker-compose down --remove-orphans -v
-.PHONY: compose-down
+.PHONY: compose-stop
+
+compose-core: compose-core-stop compose-core-start
+
+compose-core-start:
+	docker-compose -f docker-compose-core.yaml up --build
+.PHONY: compose-core-start
+
+compose-core-stop:
+	docker-compose -f docker-compose-core.yaml down --remove-orphans -v
+.PHONY: compose-core-stop
 
 compose-build:
 	docker-compose down --remove-orphans -v

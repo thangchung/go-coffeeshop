@@ -1,8 +1,11 @@
-package rabbitmq
+package publisher
 
-import "context"
+import (
+	"context"
+)
 
 type EventPublisher interface {
+	Configure(...Option) EventPublisher
 	Publish(context.Context, []byte, string) error
 	CloseChan()
 }

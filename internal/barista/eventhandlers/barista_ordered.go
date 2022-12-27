@@ -11,7 +11,7 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/barista/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
@@ -20,11 +20,11 @@ var BaristaOrderedEventHandlerSet = wire.NewSet(NewBaristaOrderedEventHandler)
 var _ BaristaOrderedEventHandler = (*baristaOrderedEventHandler)(nil)
 
 type baristaOrderedEventHandler struct {
-	pg         *postgres.Postgres
-	counterPub rabbitmq.EventPublisher
+	pg         postgres.DBEngine
+	counterPub publisher.EventPublisher
 }
 
-func NewBaristaOrderedEventHandler(pg *postgres.Postgres, counterPub rabbitmq.EventPublisher) BaristaOrderedEventHandler {
+func NewBaristaOrderedEventHandler(pg postgres.DBEngine, counterPub publisher.EventPublisher) BaristaOrderedEventHandler {
 	return &baristaOrderedEventHandler{
 		pg:         pg,
 		counterPub: counterPub,
@@ -36,9 +36,10 @@ func (h *baristaOrderedEventHandler) Handle(ctx context.Context, e event.Barista
 
 	order := domain.NewBaristaOrder(e)
 
-	querier := postgresql.New(h.pg.DB)
+	db := h.pg.GetDB()
+	querier := postgresql.New(db)
 
-	tx, err := h.pg.DB.Begin()
+	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "baristaOrderedEventHandler.Handle")
 	}

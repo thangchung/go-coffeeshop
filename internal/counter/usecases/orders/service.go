@@ -7,15 +7,15 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
 type usecase struct {
 	orderRepo        domain.OrderRepo
 	productDomainSvc domain.ProductDomainService
-	baristaEventPub  rabbitmq.EventPublisher
-	kitchenEventPub  rabbitmq.EventPublisher
+	baristaEventPub  pkgPublisher.EventPublisher
+	kitchenEventPub  pkgPublisher.EventPublisher
 }
 
 var _ UseCase = (*usecase)(nil)
@@ -23,8 +23,8 @@ var _ UseCase = (*usecase)(nil)
 func NewUseCase(
 	orderRepo domain.OrderRepo,
 	productDomainSvc domain.ProductDomainService,
-	baristaEventPub rabbitmq.EventPublisher,
-	kitchenEventPub rabbitmq.EventPublisher,
+	baristaEventPub pkgPublisher.EventPublisher,
+	kitchenEventPub pkgPublisher.EventPublisher,
 ) UseCase {
 	return &usecase{
 		orderRepo:        orderRepo,

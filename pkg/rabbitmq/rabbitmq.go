@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/wire"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/exp/slog"
 )
@@ -13,16 +14,20 @@ const (
 	_backOffSeconds = 2
 )
 
+type RabbitMQConnStr string
+
 var ErrCannotConnectRabbitMQ = errors.New("cannot connect to rabbit")
 
-func NewRabbitMQConn(rabbitMqURL string) (*amqp.Connection, error) {
+var RabbitMQSet = wire.NewSet(NewRabbitMQConn)
+
+func NewRabbitMQConn(rabbitMqURL RabbitMQConnStr) (*amqp.Connection, error) {
 	var (
 		amqpConn *amqp.Connection
 		counts   int64
 	)
 
 	for {
-		connection, err := amqp.Dial(rabbitMqURL)
+		connection, err := amqp.Dial(string(rabbitMqURL))
 		if err != nil {
 			slog.Error("failed to connect to RabbitMq...", err, rabbitMqURL)
 			counts++

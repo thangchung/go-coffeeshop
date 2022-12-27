@@ -7,18 +7,34 @@
 package app
 
 import (
-	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/eventhandlers"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 )
 
 // Injectors from wire.go:
 
-func InitApp(cfg *config.Config, pg *postgres.Postgres, amqpConn *amqp091.Connection, counterOrderPub rabbitmq.EventPublisher, consumer2 *consumer.Consumer) (*App, error) {
-	baristaOrderedEventHandler := eventhandlers.NewBaristaOrderedEventHandler(pg, counterOrderPub)
-	app := New(cfg, pg, amqpConn, counterOrderPub, consumer2, baristaOrderedEventHandler)
+func InitApp(cfg *config.Config, dbConnStr postgres.DBConnString, rabbitMQConnStr rabbitmq.RabbitMQConnStr) (*App, error) {
+	dbEngine, err := postgres.NewPostgresDB(dbConnStr)
+	if err != nil {
+		return nil, err
+	}
+	connection, err := rabbitmq.NewRabbitMQConn(rabbitMQConnStr)
+	if err != nil {
+		return nil, err
+	}
+	eventPublisher, err := publisher.NewPublisher(connection)
+	if err != nil {
+		return nil, err
+	}
+	eventConsumer, err := consumer.NewConsumer(connection)
+	if err != nil {
+		return nil, err
+	}
+	baristaOrderedEventHandler := eventhandlers.NewBaristaOrderedEventHandler(dbEngine, eventPublisher)
+	app := New(cfg, dbEngine, connection, eventPublisher, eventConsumer, baristaOrderedEventHandler)
 	return app, nil
 }

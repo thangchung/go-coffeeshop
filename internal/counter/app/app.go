@@ -17,8 +17,8 @@ import (
 	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	rabConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -46,7 +46,7 @@ func (a *App) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// postgresdb.
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
+	pg, err := postgres.NewPostgresDB(postgres.DBConnString(a.cfg.PG.DsnURL))
 	if err != nil {
 		cancel()
 
@@ -57,7 +57,7 @@ func (a *App) Run() error {
 	defer pg.Close()
 
 	// rabbitmq.
-	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
+	amqpConn, err := rabbitmq.NewRabbitMQConn(rabbitmq.RabbitMQConnStr(a.cfg.RabbitMQ.URL))
 	if err != nil {
 		slog.Error("failed to create a new RabbitMQConn", err)
 
@@ -76,40 +76,44 @@ func (a *App) Run() error {
 	}
 	defer conn.Close()
 
-	baristaOrderPub, err := publisher.NewPublisher(
+	baristaOrderPub, err := pkgPublisher.NewPublisher(
 		amqpConn,
-		publisher.ExchangeName("barista-order-exchange"),
-		publisher.BindingKey("barista-order-routing-key"),
-		publisher.MessageTypeName("barista-order-created"),
 	)
-	defer baristaOrderPub.CloseChan()
-
 	if err != nil {
 		cancel()
 
 		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
 	}
+	defer baristaOrderPub.CloseChan()
 
-	kitchenOrderPub, err := publisher.NewPublisher(
-		amqpConn,
-		publisher.ExchangeName("kitchen-order-exchange"),
-		publisher.BindingKey("kitchen-order-routing-key"),
-		publisher.MessageTypeName("kitchen-order-created"),
+	baristaOrderPub.Configure(
+		pkgPublisher.ExchangeName("barista-order-exchange"),
+		pkgPublisher.BindingKey("barista-order-routing-key"),
+		pkgPublisher.MessageTypeName("barista-order-created"),
 	)
-	defer kitchenOrderPub.CloseChan()
 
+	kitchenOrderPub, err := pkgPublisher.NewPublisher(
+		amqpConn,
+	)
 	if err != nil {
 		cancel()
 
 		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
 	}
+	defer kitchenOrderPub.CloseChan()
+
+	kitchenOrderPub.Configure(
+		pkgPublisher.ExchangeName("kitchen-order-exchange"),
+		pkgPublisher.BindingKey("kitchen-order-routing-key"),
+		pkgPublisher.MessageTypeName("kitchen-order-created"),
+	)
 
 	slog.Info("Order Publisher initialized")
 
-	// repository
+	// repository.
 	orderRepo := repo.NewOrderRepo(pg)
 
-	// domain service
+	// domain service.
 	productDomainSvc := counterGrpc.NewGRPCProductClient(conn)
 
 	// usecases.
@@ -124,18 +128,20 @@ func (a *App) Run() error {
 	a.baristaHandler = handlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
 	a.kitchenHandler = handlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
 
-	// consumers
-	consumer, err := rabConsumer.NewConsumer(
+	// consumers.
+	consumer, err := pkgConsumer.NewConsumer(
 		amqpConn,
-		rabConsumer.ExchangeName("counter-order-exchange"),
-		rabConsumer.QueueName("counter-order-queue"),
-		rabConsumer.BindingKey("counter-order-routing-key"),
-		rabConsumer.ConsumerTag("counter-order-consumer"),
 	)
-
 	if err != nil {
 		slog.Error("failed to create a new consumer", err)
 	}
+
+	consumer.Configure(
+		pkgConsumer.ExchangeName("counter-order-exchange"),
+		pkgConsumer.QueueName("counter-order-queue"),
+		pkgConsumer.BindingKey("counter-order-routing-key"),
+		pkgConsumer.ConsumerTag("counter-order-consumer"),
+	)
 
 	go func() {
 		err = consumer.StartConsumer(a.worker)
@@ -145,7 +151,7 @@ func (a *App) Run() error {
 		}
 	}()
 
-	// gRPC Server
+	// gRPC Server.
 	l, err := net.Listen(a.network, a.address)
 	if err != nil {
 		slog.Error("failed to listen to address", err, "network", a.network, "address", a.address)
@@ -176,7 +182,7 @@ func (a *App) Run() error {
 	return server.Serve(l)
 }
 
-func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
+func (a *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 	for delivery := range messages {
 		slog.Info("processDeliveries", "delivery_tag", delivery.DeliveryTag)
 		slog.Info("received", "delivery_type", delivery.Type)
@@ -190,7 +196,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 				slog.Error("failed to Unmarshal message", err)
 			}
 
-			err = c.baristaHandler.Handle(ctx, &payload)
+			err = a.baristaHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
@@ -212,7 +218,7 @@ func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
 				slog.Error("failed to Unmarshal message", err)
 			}
 
-			err = c.kitchenHandler.Handle(ctx, &payload)
+			err = a.kitchenHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {

@@ -2,14 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/thangchung/go-coffeeshop/cmd/barista/config"
 	"github.com/thangchung/go-coffeeshop/internal/barista/app"
 	"github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/pkg/postgres"
+	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/exp/slog"
+
+	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 
 	_ "github.com/lib/pq"
 )
@@ -28,6 +36,8 @@ func main() {
 		slog.Error("failed get config", err)
 	}
 
+	slog.Info("⚡ init app", "name", cfg.Name, "version", cfg.Version)
+
 	// set up logrus
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetOutput(os.Stdout)
@@ -36,8 +46,46 @@ func main() {
 	// integrate Logrus with the slog logger
 	slog.New(logger.NewLogrusHandler(logrus.StandardLogger()))
 
-	if err = app.Run(ctx, cancel, cfg); err != nil {
-		slog.Error("failed app run", err)
+	a, err := app.InitApp(cfg, postgres.DBConnString(cfg.PG.DsnURL), rabbitmq.RabbitMQConnStr(cfg.RabbitMQ.URL))
+	if err != nil {
+		slog.Error("failed init app", err)
 		cancel()
+	}
+
+	defer a.AMQPConn.Close()
+	defer a.Pg.Close()
+
+	a.CounterOrderPub.Configure(
+		pkgPublisher.ExchangeName("counter-order-exchange"),
+		pkgPublisher.BindingKey("counter-order-routing-key"),
+		pkgPublisher.MessageTypeName("barista-order-updated"),
+	)
+	defer a.CounterOrderPub.CloseChan()
+
+	a.Consumer.Configure(
+		pkgConsumer.ExchangeName("barista-order-exchange"),
+		pkgConsumer.QueueName("barista-order-queue"),
+		pkgConsumer.BindingKey("barista-order-routing-key"),
+		pkgConsumer.ConsumerTag("barista-order-consumer"),
+	)
+
+	slog.Info("🌏 start server...", "address", fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port))
+
+	go func() {
+		err := a.Consumer.StartConsumer(a.Worker)
+		if err != nil {
+			slog.Error("failed to start Consumer", err)
+			cancel()
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case v := <-quit:
+		slog.Info("signal.Notify", v)
+	case done := <-ctx.Done():
+		slog.Info("ctx.Done", done)
 	}
 }

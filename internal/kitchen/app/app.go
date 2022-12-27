@@ -15,8 +15,8 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	pkgRabbitMQ "github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	pkgconsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
@@ -41,7 +41,7 @@ func (a *App) Run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// postgresdb.
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.DsnURL)
+	pg, err := postgres.NewPostgresDB(postgres.DBConnString(a.cfg.PG.DsnURL))
 	if err != nil {
 		cancel()
 
@@ -52,7 +52,7 @@ func (a *App) Run() error {
 	defer pg.Close()
 
 	// rabbitmq.
-	amqpConn, err := pkgRabbitMQ.NewRabbitMQConn(a.cfg.RabbitMQ.URL)
+	amqpConn, err := pkgRabbitMQ.NewRabbitMQConn(pkgRabbitMQ.RabbitMQConnStr(a.cfg.RabbitMQ.URL))
 	if err != nil {
 		cancel()
 
@@ -61,36 +61,40 @@ func (a *App) Run() error {
 	defer amqpConn.Close()
 
 	// publishers
-	counterOrderPub, err := publisher.NewPublisher(
+	counterOrderPub, err := pkgPublisher.NewPublisher(
 		amqpConn,
-		publisher.ExchangeName("counter-order-exchange"),
-		publisher.BindingKey("counter-order-routing-key"),
-		publisher.MessageTypeName("kitchen-order-updated"),
 	)
-	defer counterOrderPub.CloseChan()
-
 	if err != nil {
 		cancel()
 
 		return errors.Wrap(err, "publisher-Counter-NewOrderPublisher")
 	}
+	defer counterOrderPub.CloseChan()
+
+	counterOrderPub.Configure(
+		pkgPublisher.ExchangeName("counter-order-exchange"),
+		pkgPublisher.BindingKey("counter-order-routing-key"),
+		pkgPublisher.MessageTypeName("kitchen-order-updated"),
+	)
 
 	// event handlers.
 	a.handler = eventhandlers.NewKitchenOrderedEventHandler(pg, counterOrderPub)
 
 	// consumers.
-	consumer, err := pkgconsumer.NewConsumer(
+	consumer, err := pkgConsumer.NewConsumer(
 		amqpConn,
-		pkgconsumer.ExchangeName("kitchen-order-exchange"),
-		pkgconsumer.QueueName("kitchen-order-queue"),
-		pkgconsumer.BindingKey("kitchen-order-routing-key"),
-		pkgconsumer.ConsumerTag("kitchen-order-consumer"),
 	)
-
 	if err != nil {
 		slog.Error("failed to create a new OrderConsumer", err)
 		cancel()
 	}
+
+	consumer.Configure(
+		pkgConsumer.ExchangeName("kitchen-order-exchange"),
+		pkgConsumer.QueueName("kitchen-order-queue"),
+		pkgConsumer.BindingKey("kitchen-order-routing-key"),
+		pkgConsumer.ConsumerTag("kitchen-order-consumer"),
+	)
 
 	go func() {
 		err := consumer.StartConsumer(a.worker)

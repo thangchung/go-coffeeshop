@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"golang.org/x/exp/slog"
 )
 
@@ -28,9 +28,11 @@ type publisher struct {
 	amqpConn                 *amqp.Connection
 }
 
-var _ rabbitmq.EventPublisher = (*publisher)(nil)
+var _ EventPublisher = (*publisher)(nil)
 
-func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (rabbitmq.EventPublisher, error) {
+var EventPublisherSet = wire.NewSet(NewPublisher)
+
+func NewPublisher(amqpConn *amqp.Connection) (EventPublisher, error) {
 	ch, err := amqpConn.Channel()
 	if err != nil {
 		panic(err)
@@ -45,11 +47,15 @@ func NewPublisher(amqpConn *amqp.Connection, opts ...Option) (rabbitmq.EventPubl
 		messageTypeName: _messageTypeName,
 	}
 
+	return pub, nil
+}
+
+func (p *publisher) Configure(opts ...Option) EventPublisher {
 	for _, opt := range opts {
-		opt(pub)
+		opt(p)
 	}
 
-	return pub, nil
+	return p
 }
 
 // CloseChan Close messages chan.

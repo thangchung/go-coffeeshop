@@ -19,17 +19,17 @@ import (
 const _defaultEntityCap = 64
 
 type orderRepo struct {
-	pg *postgres.Postgres
+	pg postgres.DBEngine
 }
 
 var _ domain.OrderRepo = (*orderRepo)(nil)
 
-func NewOrderRepo(pg *postgres.Postgres) domain.OrderRepo {
+func NewOrderRepo(pg postgres.DBEngine) domain.OrderRepo {
 	return &orderRepo{pg: pg}
 }
 
 func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
-	querier := postgresql.New(d.pg.DB)
+	querier := postgresql.New(d.pg.GetDB())
 
 	results, err := querier.GetAll(ctx)
 	if err != nil {
@@ -97,7 +97,7 @@ func (d *orderRepo) GetAll(ctx context.Context) ([]*domain.Order, error) {
 }
 
 func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
-	querier := postgresql.New(d.pg.DB)
+	querier := postgresql.New(d.pg.GetDB())
 
 	results, err := querier.GetByID(ctx, id)
 	if err != nil {
@@ -160,9 +160,10 @@ func (d *orderRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, e
 }
 
 func (d *orderRepo) Create(ctx context.Context, order *domain.Order) error {
-	querier := postgresql.New(d.pg.DB)
+	db := d.pg.GetDB()
+	querier := postgresql.New(db)
 
-	tx, err := d.pg.DB.Begin()
+	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "baristaOrderedEventHandler.Handle")
 	}
@@ -212,9 +213,10 @@ func (d *orderRepo) Create(ctx context.Context, order *domain.Order) error {
 }
 
 func (d *orderRepo) Update(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	querier := postgresql.New(d.pg.DB)
+	db := d.pg.GetDB()
+	querier := postgresql.New(db)
 
-	tx, err := d.pg.DB.Begin()
+	tx, err := db.Begin()
 	if err != nil {
 		return nil, errors.Wrap(err, "baristaOrderedEventHandler.Handle")
 	}

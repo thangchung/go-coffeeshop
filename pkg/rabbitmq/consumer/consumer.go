@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/exp/slog"
@@ -20,7 +21,7 @@ const (
 	_queueExclusive  = false
 	_queueNoWait     = false
 
-	_prefetchCount  = 1
+	_prefetchCount  = 5
 	_prefetchSize   = 0
 	_prefetchGlobal = false
 
@@ -36,19 +37,18 @@ const (
 	_workerPoolSize = 24
 )
 
-type worker func(ctx context.Context, messages <-chan amqp.Delivery)
-
-type Consumer struct {
+type consumer struct {
 	exchangeName, queueName, bindingKey, consumerTag string
 	workerPoolSize                                   int
 	amqpConn                                         *amqp.Connection
 }
 
-func NewConsumer(
-	amqpConn *amqp.Connection,
-	opts ...Option,
-) (*Consumer, error) {
-	sub := &Consumer{
+var _ EventConsumer = (*consumer)(nil)
+
+var EventConsumerSet = wire.NewSet(NewConsumer)
+
+func NewConsumer(amqpConn *amqp.Connection) (EventConsumer, error) {
+	sub := &consumer{
 		amqpConn:       amqpConn,
 		exchangeName:   _exchangeName,
 		queueName:      _queueName,
@@ -57,15 +57,56 @@ func NewConsumer(
 		workerPoolSize: _workerPoolSize,
 	}
 
-	for _, opt := range opts {
-		opt(sub)
-	}
-
 	return sub, nil
 }
 
+func (c *consumer) Configure(opts ...Option) EventConsumer {
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
+// StartConsumer Start new rabbitmq consumer.
+func (c *consumer) StartConsumer(fn worker) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ch, err := c.createChannel()
+	if err != nil {
+		return errors.Wrap(err, "CreateChannel")
+	}
+	defer ch.Close()
+
+	deliveries, err := ch.Consume(
+		c.queueName,
+		c.consumerTag,
+		_consumeAutoAck,
+		_consumeExclusive,
+		_consumeNoLocal,
+		_consumeNoWait,
+		nil,
+	)
+	if err != nil {
+		return errors.Wrap(err, "Consume")
+	}
+
+	forever := make(chan bool)
+
+	for i := 0; i < c.workerPoolSize; i++ {
+		go fn(ctx, deliveries)
+	}
+
+	chanErr := <-ch.NotifyClose(make(chan *amqp.Error))
+	slog.Error("ch.NotifyClose", chanErr)
+	<-forever
+
+	return chanErr
+}
+
 // CreateChannel Consume messages.
-func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
+func (c *consumer) createChannel() (*amqp.Channel, error) {
 	ch, err := c.amqpConn.Channel()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error amqpConn.Channel")
@@ -125,41 +166,4 @@ func (c *Consumer) CreateChannel() (*amqp.Channel, error) {
 	}
 
 	return ch, nil
-}
-
-// StartConsumer Start new rabbitmq consumer.
-func (c *Consumer) StartConsumer(fn worker) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ch, err := c.CreateChannel()
-	if err != nil {
-		return errors.Wrap(err, "CreateChannel")
-	}
-	defer ch.Close()
-
-	deliveries, err := ch.Consume(
-		c.queueName,
-		c.consumerTag,
-		_consumeAutoAck,
-		_consumeExclusive,
-		_consumeNoLocal,
-		_consumeNoWait,
-		nil,
-	)
-	if err != nil {
-		return errors.Wrap(err, "Consume")
-	}
-
-	forever := make(chan bool)
-
-	for i := 0; i < c.workerPoolSize; i++ {
-		go fn(ctx, deliveries)
-	}
-
-	chanErr := <-ch.NotifyClose(make(chan *amqp.Error))
-	slog.Error("ch.NotifyClose", chanErr)
-	<-forever
-
-	return chanErr
 }

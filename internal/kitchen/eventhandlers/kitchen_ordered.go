@@ -10,20 +10,20 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/kitchen/infras/postgresql"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"golang.org/x/exp/slog"
 )
 
 var _ KitchenOrderedEventHandler = (*kitchenOrderedEventHandler)(nil)
 
 type kitchenOrderedEventHandler struct {
-	pg         *postgres.Postgres
-	counterPub rabbitmq.EventPublisher
+	pg         postgres.DBEngine
+	counterPub pkgPublisher.EventPublisher
 }
 
 func NewKitchenOrderedEventHandler(
-	pg *postgres.Postgres,
-	counterPub rabbitmq.EventPublisher,
+	pg postgres.DBEngine,
+	counterPub pkgPublisher.EventPublisher,
 ) KitchenOrderedEventHandler {
 	return &kitchenOrderedEventHandler{
 		pg:         pg,
@@ -36,9 +36,10 @@ func (h *kitchenOrderedEventHandler) Handle(ctx context.Context, e event.Kitchen
 
 	order := domain.NewKitchenOrder(e)
 
-	querier := postgresql.New(h.pg.DB)
+	db := h.pg.GetDB()
+	querier := postgresql.New(db)
 
-	tx, err := h.pg.DB.Begin()
+	tx, err := db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "kitchenOrderedEventHandler.Handle")
 	}
