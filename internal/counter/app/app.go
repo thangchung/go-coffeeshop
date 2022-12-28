@@ -12,18 +12,21 @@ import (
 	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
 	"github.com/thangchung/go-coffeeshop/proto/gen"
 	"golang.org/x/exp/slog"
 )
 
 type App struct {
-	Cfg      *config.Config
-	PG       postgres.DBEngine
-	AMQPConn *amqp.Connection
+	Cfg       *config.Config
+	PG        postgres.DBEngine
+	AMQPConn  *amqp.Connection
+	Publisher pkgPublisher.EventPublisher
+	Consumer  pkgConsumer.EventConsumer
 
-	BaristaOrderPub   ordersUC.BaristaEventPublisher
-	KitchenOrderPub   ordersUC.KitchenEventPublisher
-	Consumer          pkgConsumer.EventConsumer
+	BaristaOrderPub sharedevents.BaristaEventPublisher
+	KitchenOrderPub sharedevents.KitchenEventPublisher
+
 	ProductDomainSvc  domain.ProductDomainService
 	UC                ordersUC.UseCase
 	CounterGRPCServer gen.CounterServiceServer
@@ -36,10 +39,11 @@ func New(
 	cfg *config.Config,
 	pg postgres.DBEngine,
 	amqpConn *amqp.Connection,
-
-	baristaOrderPub ordersUC.BaristaEventPublisher,
-	kitchenOrderPub ordersUC.KitchenEventPublisher,
+	publisher pkgPublisher.EventPublisher,
 	consumer pkgConsumer.EventConsumer,
+
+	baristaOrderPub sharedevents.BaristaEventPublisher,
+	kitchenOrderPub sharedevents.KitchenEventPublisher,
 	productDomainSvc domain.ProductDomainService,
 	uc ordersUC.UseCase,
 	counterGRPCServer gen.CounterServiceServer,
@@ -50,12 +54,14 @@ func New(
 	return &App{
 		Cfg: cfg,
 
-		PG:       pg,
-		AMQPConn: amqpConn,
+		PG:        pg,
+		AMQPConn:  amqpConn,
+		Publisher: publisher,
+		Consumer:  consumer,
 
-		BaristaOrderPub:   baristaOrderPub,
-		KitchenOrderPub:   kitchenOrderPub,
-		Consumer:          consumer,
+		BaristaOrderPub: baristaOrderPub,
+		KitchenOrderPub: kitchenOrderPub,
+
 		ProductDomainSvc:  productDomainSvc,
 		UC:                uc,
 		CounterGRPCServer: counterGRPCServer,

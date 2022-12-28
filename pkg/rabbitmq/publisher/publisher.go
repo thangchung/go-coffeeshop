@@ -21,14 +21,14 @@ const (
 	_messageTypeName = "ordered"
 )
 
-type publisher struct {
+type Publisher struct {
 	exchangeName, bindingKey string
 	messageTypeName          string
 	amqpChan                 *amqp.Channel
 	amqpConn                 *amqp.Connection
 }
 
-var _ EventPublisher = (*publisher)(nil)
+var _ EventPublisher = (*Publisher)(nil)
 
 var EventPublisherSet = wire.NewSet(NewPublisher)
 
@@ -39,7 +39,7 @@ func NewPublisher(amqpConn *amqp.Connection) (EventPublisher, error) {
 	}
 	defer ch.Close()
 
-	pub := &publisher{
+	pub := &Publisher{
 		amqpConn:        amqpConn,
 		amqpChan:        ch,
 		exchangeName:    _exchangeName,
@@ -50,7 +50,7 @@ func NewPublisher(amqpConn *amqp.Connection) (EventPublisher, error) {
 	return pub, nil
 }
 
-func (p *publisher) Configure(opts ...Option) EventPublisher {
+func (p *Publisher) Configure(opts ...Option) EventPublisher {
 	for _, opt := range opts {
 		opt(p)
 	}
@@ -59,13 +59,13 @@ func (p *publisher) Configure(opts ...Option) EventPublisher {
 }
 
 // CloseChan Close messages chan.
-func (p *publisher) CloseChan() {
+func (p *Publisher) CloseChan() {
 	if err := p.amqpChan.Close(); err != nil {
 		slog.Error("failed to close chan", err)
 	}
 }
 
-func (p *publisher) PublishEvents(ctx context.Context, events []any) error {
+func (p *Publisher) PublishEvents(ctx context.Context, events []any) error {
 	for _, e := range events {
 		b, err := json.Marshal(e)
 		if err != nil {
@@ -82,7 +82,7 @@ func (p *publisher) PublishEvents(ctx context.Context, events []any) error {
 }
 
 // Publish message.
-func (p *publisher) Publish(ctx context.Context, body []byte, contentType string) error {
+func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string) error {
 	ch, err := p.amqpConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "CreateChannel")

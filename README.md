@@ -1,8 +1,8 @@
 # go-coffeeshop
 
-A coffee shop application with event-driven microservices has been written in Golang. Nomad, Consul Connect, Vault, and Terraform for deployment
+A event-driven microservices coffee shop application has been written in Golang, and deployment using Nomad, Consul Connect, Vault, and Terraform.
 
-Other version can be found at:
+Other versions can be found at:
 
 - [.NET CoffeeShop with Microservices approach](https://github.com/thangchung/coffeeshop-on-nomad)
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
@@ -45,8 +45,8 @@ No. | Service | URI
 1 | grpc-gateway | [http://localhost:5000](http://localhost:5000)
 2 | product service | [http://localhost:5001](http://localhost:5001)
 3 | counter service | [http://localhost:5002](http://localhost:5002)
-4 | barista service | 
-5 | kitchen service | 
+4 | barista service |  
+5 | kitchen service |  
 6 | web | [http://localhost:8888](http://localhost:8888)
 
 ## Starting project

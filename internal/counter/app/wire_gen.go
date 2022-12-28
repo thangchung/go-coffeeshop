@@ -7,13 +7,13 @@
 package app
 
 import (
-	"github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/app/router"
 	"github.com/thangchung/go-coffeeshop/internal/counter/events/handlers"
 	grpc2 "github.com/thangchung/go-coffeeshop/internal/counter/infras/grpc"
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/repo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
+	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
 	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
@@ -32,33 +32,25 @@ func InitApp(cfg *config.Config, dbConnStr postgres.DBConnString, rabbitMQConnSt
 	if err != nil {
 		return nil, err
 	}
-	ordersBaristaEventPublisher := baristaEventPublisher(connection)
-	ordersKitchenEventPublisher := kitchenEventPublisher(connection)
+	eventPublisher, err := publisher.NewPublisher(connection)
+	if err != nil {
+		return nil, err
+	}
 	eventConsumer, err := consumer.NewConsumer(connection)
 	if err != nil {
 		return nil, err
 	}
+	baristaEventPublisher := event.NewBaristaEventPublisher(eventPublisher)
+	kitchenEventPublisher := event.NewKitchenEventPublisher(eventPublisher)
 	productDomainService, err := grpc2.NewGRPCProductClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 	orderRepo := repo.NewOrderRepo(dbEngine)
-	useCase := orders.NewUseCase(orderRepo, productDomainService, ordersBaristaEventPublisher, ordersKitchenEventPublisher)
+	useCase := orders.NewUseCase(orderRepo, productDomainService, baristaEventPublisher, kitchenEventPublisher)
 	counterServiceServer := router.NewGRPCCounterServer(grpcServer, cfg, useCase)
 	baristaOrderUpdatedEventHandler := handlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
 	kitchenOrderUpdatedEventHandler := handlers.NewKitchenOrderUpdatedEventHandler(orderRepo)
-	app := New(cfg, dbEngine, connection, ordersBaristaEventPublisher, ordersKitchenEventPublisher, eventConsumer, productDomainService, useCase, counterServiceServer, baristaOrderUpdatedEventHandler, kitchenOrderUpdatedEventHandler)
+	app := New(cfg, dbEngine, connection, eventPublisher, eventConsumer, baristaEventPublisher, kitchenEventPublisher, productDomainService, useCase, counterServiceServer, baristaOrderUpdatedEventHandler, kitchenOrderUpdatedEventHandler)
 	return app, nil
-}
-
-// wire.go:
-
-func baristaEventPublisher(amqpConn *amqp091.Connection) orders.BaristaEventPublisher {
-	pub, _ := publisher.NewPublisher(amqpConn)
-	return (orders.BaristaEventPublisher)(pub)
-}
-
-func kitchenEventPublisher(amqpConn *amqp091.Connection) orders.KitchenEventPublisher {
-	pub, _ := publisher.NewPublisher(amqpConn)
-	return (orders.KitchenEventPublisher)(pub)
 }

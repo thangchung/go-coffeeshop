@@ -8,7 +8,7 @@ http:
 
 postgres:
   pool_max: 2
-  dsn_url: user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
+  dsn_url: host=127.0.0.1 user=postgres password=P@ssw0rd dbname=postgres sslmode=disable
 
 rabbitmq:
   url: amqp://guest:guest@127.0.0.1:5672/

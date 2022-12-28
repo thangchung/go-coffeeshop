@@ -52,15 +52,15 @@ func main() {
 		cancel()
 	}
 
-	// defer a.AMQPConn.Close()
-	// defer a.PG.Close()
+	defer a.AMQPConn.Close()
+	defer a.PG.Close()
 
 	a.CounterOrderPub.Configure(
 		pkgPublisher.ExchangeName("counter-order-exchange"),
 		pkgPublisher.BindingKey("counter-order-routing-key"),
 		pkgPublisher.MessageTypeName("kitchen-order-updated"),
 	)
-	// defer a.CounterOrderPub.CloseChan()
+	defer a.CounterOrderPub.CloseChan()
 
 	a.Consumer.Configure(
 		pkgConsumer.ExchangeName("kitchen-order-exchange"),

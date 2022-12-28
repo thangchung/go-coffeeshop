@@ -8,20 +8,15 @@ import (
 	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"golang.org/x/exp/slog"
-)
-
-type (
-	BaristaEventPublisher pkgPublisher.EventPublisher
-	KitchenEventPublisher pkgPublisher.EventPublisher
 )
 
 type usecase struct {
 	orderRepo        domain.OrderRepo
 	productDomainSvc domain.ProductDomainService
-	baristaEventPub  BaristaEventPublisher
-	kitchenEventPub  KitchenEventPublisher
+	baristaEventPub  event.BaristaEventPublisher
+	kitchenEventPub  event.KitchenEventPublisher
 }
 
 var _ UseCase = (*usecase)(nil)
@@ -31,8 +26,8 @@ var UseCaseSet = wire.NewSet(NewUseCase)
 func NewUseCase(
 	orderRepo domain.OrderRepo,
 	productDomainSvc domain.ProductDomainService,
-	baristaEventPub BaristaEventPublisher,
-	kitchenEventPub KitchenEventPublisher,
+	baristaEventPub event.BaristaEventPublisher,
+	kitchenEventPub event.KitchenEventPublisher,
 ) UseCase {
 	return &usecase{
 		orderRepo:        orderRepo,
