@@ -3,210 +3,128 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net"
 
-	"github.com/pkg/errors"
-	"github.com/rabbitmq/amqp091-go"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thangchung/go-coffeeshop/cmd/counter/config"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/eventhandlers"
-	"github.com/thangchung/go-coffeeshop/internal/counter/features/orders/repo"
-	counterGrpc "github.com/thangchung/go-coffeeshop/internal/counter/grpc"
-	"github.com/thangchung/go-coffeeshop/pkg/event"
-	mylogger "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"github.com/thangchung/go-coffeeshop/internal/counter/events"
+	ordersUC "github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
+	shared "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq"
-	rabConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
-	"github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
+	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
+	"github.com/thangchung/go-coffeeshop/proto/gen"
+	"golang.org/x/exp/slog"
 )
 
 type App struct {
-	logger  *mylogger.Logger
-	cfg     *config.Config
-	network string
-	address string
-	handler domain.BaristaOrderUpdatedEventHandler
+	Cfg       *config.Config
+	PG        postgres.DBEngine
+	AMQPConn  *amqp.Connection
+	Publisher pkgPublisher.EventPublisher
+	Consumer  pkgConsumer.EventConsumer
+
+	BaristaOrderPub ordersUC.BaristaEventPublisher
+	KitchenOrderPub ordersUC.KitchenEventPublisher
+
+	ProductDomainSvc  domain.ProductDomainService
+	UC                ordersUC.UseCase
+	CounterGRPCServer gen.CounterServiceServer
+
+	baristaHandler events.BaristaOrderUpdatedEventHandler
+	kitchenHandler events.KitchenOrderUpdatedEventHandler
 }
 
-func New(log *mylogger.Logger, cfg *config.Config) *App {
+func New(
+	cfg *config.Config,
+	pg postgres.DBEngine,
+	amqpConn *amqp.Connection,
+	publisher pkgPublisher.EventPublisher,
+	consumer pkgConsumer.EventConsumer,
+
+	baristaOrderPub ordersUC.BaristaEventPublisher,
+	kitchenOrderPub ordersUC.KitchenEventPublisher,
+	productDomainSvc domain.ProductDomainService,
+	uc ordersUC.UseCase,
+	counterGRPCServer gen.CounterServiceServer,
+
+	baristaHandler events.BaristaOrderUpdatedEventHandler,
+	kitchenHandler events.KitchenOrderUpdatedEventHandler,
+) *App {
 	return &App{
-		logger:  log,
-		cfg:     cfg,
-		network: "tcp",
-		address: fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port),
+		Cfg: cfg,
+
+		PG:        pg,
+		AMQPConn:  amqpConn,
+		Publisher: publisher,
+		Consumer:  consumer,
+
+		BaristaOrderPub: baristaOrderPub,
+		KitchenOrderPub: kitchenOrderPub,
+
+		ProductDomainSvc:  productDomainSvc,
+		UC:                uc,
+		CounterGRPCServer: counterGRPCServer,
+
+		baristaHandler: baristaHandler,
+		kitchenHandler: kitchenHandler,
 	}
 }
 
-func (a *App) Run() error {
-	a.logger.Info("Init %s %s\n", a.cfg.Name, a.cfg.Version)
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// PostgresDB
-	pg, err := postgres.NewPostgresDB(a.cfg.PG.URL, postgres.MaxPoolSize(a.cfg.PG.PoolMax))
-	if err != nil {
-		a.logger.Fatal("app - Run - postgres.NewPostgres: %s", err.Error())
-
-		cancel()
-
-		return err
-	}
-	defer pg.Close()
-
-	// RabbitMQ
-	amqpConn, err := rabbitmq.NewRabbitMQConn(a.cfg.RabbitMQ.URL, a.logger)
-	if err != nil {
-		a.logger.Fatal("app - Run - rabbitmq.NewRabbitMQConn: %s", err.Error())
-
-		cancel()
-
-		return err
-	}
-	defer amqpConn.Close()
-
-	// gRPC Client
-	conn, err := grpc.Dial(a.cfg.ProductClient.URL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		cancel()
-
-		return err
-	}
-	defer conn.Close()
-
-	baristaOrderPub, err := publisher.NewPublisher(
-		amqpConn,
-		a.logger,
-		publisher.ExchangeName("barista-order-exchange"),
-		publisher.BindingKey("barista-order-routing-key"),
-		publisher.MessageTypeName("barista-order-created"),
-	)
-	defer baristaOrderPub.CloseChan()
-
-	if err != nil {
-		cancel()
-
-		return errors.Wrap(err, "counterRabbitMQ-Barista-NewOrderPublisher")
-	}
-
-	kitchenOrderPub, err := publisher.NewPublisher(
-		amqpConn,
-		a.logger,
-		publisher.ExchangeName("kitchen-order-exchange"),
-		publisher.BindingKey("kitchen-order-routing-key"),
-		publisher.MessageTypeName("kitchen-order-created"),
-	)
-	defer kitchenOrderPub.CloseChan()
-
-	if err != nil {
-		cancel()
-
-		return errors.Wrap(err, "counterRabbitMQ-Kitchen-NewOrderPublisher")
-	}
-
-	a.logger.Info("Order Publisher initialized")
-
-	// repository
-	orderRepo := repo.NewOrderRepo(pg)
-
-	// domain service
-	productDomainSvc := counterGrpc.NewProductDomainService(conn)
-
-	// event handlers.
-	a.handler = eventhandlers.NewBaristaOrderUpdatedEventHandler(orderRepo)
-
-	// consumers
-	consumer, err := rabConsumer.NewConsumer(
-		amqpConn,
-		a.logger,
-		rabConsumer.ExchangeName("counter-order-exchange"),
-		rabConsumer.QueueName("counter-order-queue"),
-		rabConsumer.BindingKey("counter-order-routing-key"),
-		rabConsumer.ConsumerTag("counter-order-consumer"),
-	)
-
-	if err != nil {
-		a.logger.Fatal("app-Run-consumer.NewOrderConsumer: %s", err.Error())
-	}
-
-	go func() {
-		err = consumer.StartConsumer(a.worker)
-		if err != nil {
-			a.logger.Error("StartConsumer: %v", err)
-			cancel()
-		}
-	}()
-
-	// gRPC Server
-	l, err := net.Listen(a.network, a.address)
-	if err != nil {
-		a.logger.Fatal("app-Run-net.Listener: %s", err.Error())
-
-		return err
-	}
-
-	defer func() {
-		if err := l.Close(); err != nil {
-			a.logger.Error("Failed to close %s %s: %v", a.network, a.address, err)
-		}
-	}()
-
-	server := grpc.NewServer()
-	counterGrpc.NewCounterServiceServerGrpc(
-		server,
-		amqpConn,
-		a.cfg,
-		a.logger,
-		orderRepo,
-		productDomainSvc,
-		*baristaOrderPub,
-		*kitchenOrderPub,
-	)
-
-	go func() {
-		defer server.GracefulStop()
-		<-ctx.Done()
-	}()
-
-	a.logger.Info("Start server at " + a.address + " ...")
-
-	return server.Serve(l)
-}
-
-func (c *App) worker(ctx context.Context, messages <-chan amqp091.Delivery) {
+func (a *App) Worker(ctx context.Context, messages <-chan amqp.Delivery) {
 	for delivery := range messages {
-		c.logger.Info("processDeliveries deliveryTag %v", delivery.DeliveryTag)
-		c.logger.Info("received %s", delivery.Type)
+		slog.Info("processDeliveries", "delivery_tag", delivery.DeliveryTag)
+		slog.Info("received", "delivery_type", delivery.Type)
 
 		switch delivery.Type {
-		case "counter-order-updated":
-			var payload event.BaristaOrderUpdated
-			err := json.Unmarshal(delivery.Body, &payload)
+		case "barista-order-updated":
+			var payload shared.BaristaOrderUpdated
 
+			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
-				c.logger.LogError(err)
+				slog.Error("failed to Unmarshal message", err)
 			}
 
-			err = c.handler.Handle(ctx, &payload)
+			err = a.baristaHandler.Handle(ctx, &payload)
 
 			if err != nil {
 				if err = delivery.Reject(false); err != nil {
-					c.logger.Error("Err delivery.Reject: %v", err)
+					slog.Error("failed to delivery.Reject", err)
 				}
 
-				c.logger.Error("Failed to process delivery: %v", err)
+				slog.Error("failed to process delivery", err)
 			} else {
 				err = delivery.Ack(false)
 				if err != nil {
-					c.logger.Error("Failed to acknowledge delivery: %v", err)
+					slog.Error("failed to acknowledge delivery", err)
+				}
+			}
+		case "kitchen-order-updated":
+			var payload shared.KitchenOrderUpdated
+
+			err := json.Unmarshal(delivery.Body, &payload)
+			if err != nil {
+				slog.Error("failed to Unmarshal message", err)
+			}
+
+			err = a.kitchenHandler.Handle(ctx, &payload)
+
+			if err != nil {
+				if err = delivery.Reject(false); err != nil {
+					slog.Error("failed to delivery.Reject", err)
+				}
+
+				slog.Error("failed to process delivery", err)
+			} else {
+				err = delivery.Ack(false)
+				if err != nil {
+					slog.Error("failed to acknowledge delivery", err)
 				}
 			}
 		default:
-			c.logger.Info("default")
+			slog.Info("default")
 		}
 	}
 
-	c.logger.Info("Deliveries channel closed")
+	slog.Info("Deliveries channel closed")
 }

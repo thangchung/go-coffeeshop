@@ -1,0 +1,28 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/counter/infras/postgresql/query/query.sql"
+    schema: "db/migrations/000001_init_counterdb.up.sql"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/counter/infras/postgresql"
+        emit_json_tags: true
+
+  - engine: "postgresql"
+    queries: "internal/kitchen/infras/postgresql/query/query.sql"
+    schema: "db/migrations/000003_init_kitchendb.up.sql"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/kitchen/infras/postgresql"
+        emit_json_tags: true
+
+  - engine: "postgresql"
+    queries: "internal/barista/infras/postgresql/query/"
+    schema: "db/migrations/000002_init_baristadb.up.sql"
+    gen:
+      go:
+        package: "postgresql"
+        out: "internal/barista/infras/postgresql"
+        emit_json_tags: true

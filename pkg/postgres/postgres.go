@@ -1,52 +1,40 @@
 package postgres
 
 import (
-	"context"
-	"fmt"
+	"database/sql"
 	"log"
 	"time"
 
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/exp/slog"
 )
 
 const (
-	_defaultMaxPoolSize  = 1
-	_defaultConnAttempts = 5
+	_defaultConnAttempts = 3
 	_defaultConnTimeout  = time.Second
 )
 
-type Postgres struct {
-	maxPoolSize  int
+type DBConnString string
+
+type postgres struct {
 	connAttempts int
 	connTimeout  time.Duration
 
-	Builder squirrel.StatementBuilderType
-	Pool    *pgxpool.Pool
+	db *sql.DB
 }
 
-func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
-	pg := &Postgres{
-		maxPoolSize:  _defaultMaxPoolSize,
+var _ DBEngine = (*postgres)(nil)
+
+func NewPostgresDB(url DBConnString) (DBEngine, error) {
+	slog.Info("CONN", "connect string", url)
+
+	pg := &postgres{
 		connAttempts: _defaultConnAttempts,
 		connTimeout:  _defaultConnTimeout,
 	}
 
-	for _, opt := range opts {
-		opt(pg)
-	}
-
-	pg.Builder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-
-	poolConfig, err := pgxpool.ParseConfig(url)
-	if err != nil {
-		return nil, fmt.Errorf("postgres - NewPostgres - pgxpool.ParseConfig: %w", err)
-	}
-
-	poolConfig.MaxConns = int32(pg.maxPoolSize)
-
+	var err error
 	for pg.connAttempts > 0 {
-		pg.Pool, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+		pg.db, err = sql.Open("postgres", string(url))
 		if err != nil {
 			break
 		}
@@ -58,15 +46,25 @@ func NewPostgresDB(url string, opts ...Option) (*Postgres, error) {
 		pg.connAttempts--
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("postgres - NewPostgres - connAttempts == 0: %w", err)
-	}
+	slog.Info("📰 connected to postgresdb 🎉")
 
 	return pg, nil
 }
 
-func (p *Postgres) Close() {
-	if p.Pool != nil {
-		p.Pool.Close()
+func (p *postgres) Configure(opts ...Option) DBEngine {
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+func (p *postgres) GetDB() *sql.DB {
+	return p.db
+}
+
+func (p *postgres) Close() {
+	if p.db != nil {
+		p.db.Close()
 	}
 }

@@ -2,12 +2,14 @@ package publisher
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/google/wire"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
-	log "github.com/thangchung/go-coffeeshop/pkg/logger"
+	"golang.org/x/exp/slog"
 )
 
 const (
@@ -19,53 +21,68 @@ const (
 	_messageTypeName = "ordered"
 )
 
-type Publisher struct {
+type publisher struct {
 	exchangeName, bindingKey string
 	messageTypeName          string
 	amqpChan                 *amqp.Channel
 	amqpConn                 *amqp.Connection
-	logger                   *log.Logger
 }
 
-func NewPublisher(amqpConn *amqp.Connection, logger *log.Logger, opts ...Option) (*Publisher, error) {
+var _ EventPublisher = (*publisher)(nil)
+
+var EventPublisherSet = wire.NewSet(NewPublisher)
+
+func NewPublisher(amqpConn *amqp.Connection) (EventPublisher, error) {
 	ch, err := amqpConn.Channel()
 	if err != nil {
 		panic(err)
 	}
 	defer ch.Close()
 
-	pub := &Publisher{
+	pub := &publisher{
 		amqpConn:        amqpConn,
 		amqpChan:        ch,
-		logger:          logger,
 		exchangeName:    _exchangeName,
 		bindingKey:      _bindingKey,
 		messageTypeName: _messageTypeName,
 	}
 
-	for _, opt := range opts {
-		opt(pub)
-	}
-
 	return pub, nil
 }
 
-// CloseChan Close messages chan.
-func (p *Publisher) CloseChan() {
-	if err := p.amqpChan.Close(); err != nil {
-		p.logger.Error("Publisher CloseChan: %v", err)
+func (p *publisher) Configure(opts ...Option) EventPublisher {
+	for _, opt := range opts {
+		opt(p)
 	}
+
+	return p
+}
+
+func (p *publisher) PublishEvents(ctx context.Context, events []any) error {
+	for _, e := range events {
+		b, err := json.Marshal(e)
+		if err != nil {
+			return errors.Wrap(err, "publisher-json.Marshal")
+		}
+
+		err = p.Publish(ctx, b, "text/plain")
+		if err != nil {
+			return errors.Wrap(err, "publisher-pub.Publish")
+		}
+	}
+
+	return nil
 }
 
 // Publish message.
-func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string) error {
+func (p *publisher) Publish(ctx context.Context, body []byte, contentType string) error {
 	ch, err := p.amqpConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "CreateChannel")
 	}
 	defer ch.Close()
 
-	p.logger.Info("Publishing message Exchange: %s, RoutingKey: %s", p.exchangeName, p.bindingKey)
+	slog.Info("publish message", "exchange", p.exchangeName, "routing_key", p.bindingKey)
 
 	if err := ch.PublishWithContext(
 		ctx,
@@ -79,7 +96,7 @@ func (p *Publisher) Publish(ctx context.Context, body []byte, contentType string
 			MessageId:    uuid.New().String(),
 			Timestamp:    time.Now(),
 			Body:         body,
-			Type:         p.messageTypeName, //"barista.ordered",
+			Type:         p.messageTypeName,
 		},
 	); err != nil {
 		return errors.Wrap(err, "ch.Publish")

@@ -1,25 +1,29 @@
 # go-coffeeshop
 
-A coffee shop application with event-driven microservices has been written in Golang. Nomad, Consul Connect, Vault, and Terraform for deployment
+An event-driven microservices coffee shop application has been written in Golang and deployed using Nomad, Consul Connect, Vault, and Terraform.
 
-Other version can be found at:
+Other versions in .NET/C# can be found at:
 
 - [.NET CoffeeShop with Microservices approach](https://github.com/thangchung/coffeeshop-on-nomad)
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
 
 ## Technical stack
+
 - Backend building blocks
   - [grpc-ecosystem/grpc-gateway/v2](https://github.com/grpc-ecosystem/grpc-gateway)
   - [labstack/echo/v4](https://github.com/labstack/echo)
   - [rabbitmq/amqp091-go](https://github.com/rabbitmq/amqp091-go)
-  - [jackc/pgx/v4](https://github.com/jackc/pgx)
-  - [Masterminds/squirrel](https://github.com/Masterminds/squirrel)
-  - [georgysavva/scany](https://github.com/georgysavva/scany)
+  - [kyleconroy/sqlc](https://github.com/kyleconroy/sqlc)
+    - [pq](github.com/lib/pq)
   - [golang-migrate/migrate/v4](https://github.com/golang-migrate/migrate)
   - Utils
+    - [google/wire](github.com/google/wire)
     - [ilyakaznacheev/cleanenv](https://github.com/ilyakaznacheev/cleanenv)
-    - [sirupsen/logrus](https://github.com/sirupsen/logrus)
+    - golang.org/x/exp/slog
+      - [sirupsen/logrus](https://github.com/sirupsen/logrus)
     - [samber/lo](https://github.com/samber/lo)
+    - [automaxprocs/maxprocs](go.uber.org/automaxprocs/maxprocs)
+    - [stretchr/testify](github.com/stretchr/testify)
     - golang/glog
     - google/uuid
     - google.golang.org/genproto
@@ -33,7 +37,7 @@ Other version can be found at:
 
 ## CoffeeShop - Choreography Saga
 
-![](docs/coffeeshop.svg)
+![coffeeshop](docs/coffeeshop.svg)
 
 ## Services
 
@@ -42,20 +46,19 @@ No. | Service | URI
 1 | grpc-gateway | [http://localhost:5000](http://localhost:5000)
 2 | product service | [http://localhost:5001](http://localhost:5001)
 3 | counter service | [http://localhost:5002](http://localhost:5002)
-4 | barista service | [http://localhost:5003](http://localhost:5003)
-5 | kitchen service | [http://localhost:5004](http://localhost:5004)
-6 | web | [http://localhost:8080](http://localhost:8080)
+4 | barista service | worker only
+5 | kitchen service | worker only
+6 | web | [http://localhost:8888](http://localhost:8888)
 
 ## Starting project
 
-Jump into `.devcontainer`, then
+Jump into [`.devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers), then
 
 ```bash
-> docker-compose -f docker-compose-full.yaml build
-> docker-compose -f docker-compose-full.yaml up
+> make docker-compose
 ```
 
-From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8080](http://localhost:8080).
+From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8888](http://localhost:8888).
 Enjoy!!!
 
 ## Screenshots
@@ -74,21 +77,39 @@ Enjoy!!!
 
 ## HashiCorp stack deployment
 
-![](docs/coffeeshop_hashicorp.svg)
+![coffeeshop_hashicorp](docs/coffeeshop_hashicorp.svg)
 
 The details of how to run it can be find at [deployment with Nomad, Consult Connect and Vault](build/README.md).
 
-## Debug Apps
+## Development
+
+### Clean Domain-driven Design
+
+![clean_ddd](docs/clean_ddd.svg)
+
+### Generate dependency injection instances with wire
+
+```bash
+> make wire
+```
+
+### Generate code with sqlc
+
+```bash
+> make sqlc
+```
+
+### Debug Apps
 
 [Debug golang app in monorepo](https://github.com/thangchung/go-coffeeshop/wiki/Golang#debug-app-in-monorepo)
 
-## Trouble shooting
+### Trouble shooting
 
 [Development project trouble shooting](https://github.com/thangchung/go-coffeeshop/wiki#trouble-shooting)
 
 ## Roadmap
 
-- Enhance project structure with DDD patterns
+- ✅ Enhance project structure with DDD patterns
 - Add testing
 - Add and integrate with observability libs and tools
 - Add user identity management (authentication and authorization)

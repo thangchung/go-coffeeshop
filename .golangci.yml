@@ -12,12 +12,12 @@ linters-settings:
     check-generated: false
     default-signifies-exhaustive: false
   funlen:
-    lines: 65
-    statements: 40
+    lines: 100
+    statements: 50
   gocognit:
-    min-complexity: 15
+    min-complexity: 40
   gocyclo:
-    min-complexity: 10
+    min-complexity: 15
   goconst:
     min-len: 2
     min-occurrences: 2

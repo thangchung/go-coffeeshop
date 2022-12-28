@@ -11,7 +11,7 @@
         // new files getting created as root, but you may need to update the USER_UID
         // and USER_GID in .devcontainer/Dockerfile to match your user if not 1000.
         "-u",
-        "vscode",
+        "root",
         // Mount go mod cache
         "-v",
         "coffeeshop-gomodcache:/go/pkg",
@@ -22,6 +22,9 @@
         "--security-opt",
         "seccomp=unconfined"
     ],
+    "remoteUser": "root",
+    "containerUser": "root",
+    "forwardPorts": [5000, 8888, 5432, 15672],
     // Use 'settings' to set *default* container specific settings.json values on container create.
     // You can edit these settings after create using File > Preferences > Settings > Remote.
     "settings": {
@@ -84,31 +87,38 @@
                 "maxStringLen": 2048
             },
             "apiVersion": 2
-        }
+        },
+        "terminal.integrated.profiles.linux": {
+			"zsh": {
+				"path": "/usr/bin/zsh"
+			}
+		},
+		"terminal.integrated.defaultProfile.linux": "zsh"
     },
     // Add the IDs of extensions you want installed when the container is created in the array below.
     "extensions": [
         "golang.go",
         // optional:
-        "ms-azuretools.vscode-docker",
-        "ms-kubernetes-tools.vscode-kubernetes-tools",
         "mutantdino.resourcemonitor",
         "humao.rest-client",
-        "42crunch.vscode-openapi",
         "heaths.vscode-guid",
         "bungcip.better-toml",
-        "eamodio.gitlens",
+        "ms-vscode.makefile-tools",
         "casualjim.gotemplate",
         "davidanson.vscode-markdownlint",
-        "cweijan.vscode-mysql-client2",
+        "cweijan.vscode-database-client2",
         "bierner.markdown-mermaid",
         "hashicorp.hcl",
         "fredwangwang.vscode-hcl-format"
+        // "ms-azuretools.vscode-docker",
+        // "ms-kubernetes-tools.vscode-kubernetes-tools",
+        // "42crunch.vscode-openapi",
+        // "eamodio.gitlens",
     ],
-    "postCreateCommand": "go version",
+    "postCreateCommand": "go version && go install github.com/google/wire/cmd/wire@latest && go install github.com/kyleconroy/sqlc/cmd/sqlc@latest",
     "features": {
         "ghcr.io/devcontainers/features/go:1": {
-            "version": "1.19"
+            "version": "1.19.4"
         },
         "ghcr.io/devcontainers/features/docker-in-docker:1": {
             "moby": false

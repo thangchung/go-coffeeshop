@@ -1,16 +1,9 @@
 include .env
 export
 
-PRODUCT_BINARY_NAME=product.out
-PROXY_BINARY_NAME=proxy.out
-
 all: build test
 
-build-product:
-	go build -tags migrate -o ./cmd/product/${PRODUCT_BINARY_NAME} github.com/thangchung/go-coffeeshop/cmd/product
-
-build-proxy:
-	go build -tags migrate -o ./cmd/proxy/${PROXY_BINARY_NAME} github.com/thangchung/go-coffeeshop/cmd/proxy
+run: run-product run-counter run-barista run-kitchen run-proxy run-web
 
 run-product:
 	cd cmd/product && go mod tidy && go mod download && \
@@ -42,25 +35,45 @@ run-web:
 	CGO_ENABLED=0 go run github.com/thangchung/go-coffeeshop/cmd/web
 .PHONY: run-web
 
-test:
-	go test -v main.go
+docker-compose: docker-compose-stop docker-compose-start
+.PHONY: docker-compose
 
-package:
+docker-compose-start:
+	docker-compose up --build
+.PHONY: docker-compose-start
+
+docker-compose-stop:
+	docker-compose down --remove-orphans -v
+.PHONY: docker-compose-stop
+
+docker-compose-core: docker-compose-core-stop docker-compose-core-start
+
+docker-compose-core-start:
+	docker-compose -f docker-compose-core.yaml up --build
+.PHONY: docker-compose-core-start
+
+docker-compose-core-stop:
+	docker-compose -f docker-compose-core.yaml down --remove-orphans -v
+.PHONY: docker-compose-core-stop
+
+docker-compose-build:
 	docker-compose down --remove-orphans -v
 	docker-compose build
-.PHONY: package
+.PHONY: docker-compose-build
 
-compose-up: ### Run docker-compose
-	docker-compose up --build -d postgres && docker-compose logs -f
-.PHONY: compose-up
+wire:
+	cd internal/barista/app && wire && cd - && \
+	cd internal/counter/app && wire && cd - && \
+	cd internal/kitchen/app && wire && cd - && \
+	cd internal/product/app && wire && cd -
+.PHONY: wire
 
-compose-down: ### Down docker-compose
-	docker-compose down --remove-orphans
-.PHONY: compose-down
+sqlc:
+	sqlc generate
+.PHONY: sqlc
 
-docker-rm-volume: ### remove docker volume
-	docker volume rm go-clean-template_pg-data
-.PHONY: docker-rm-volume
+test:
+	go test -v main.go
 
 linter-golangci: ### check by golangci linter
 	golangci-lint run
@@ -68,4 +81,3 @@ linter-golangci: ### check by golangci linter
 
 clean:
 	go clean
-	rm ${PRODUCT_BINARY_NAME}
