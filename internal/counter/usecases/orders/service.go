@@ -8,15 +8,14 @@ import (
 	"github.com/google/wire"
 	"github.com/pkg/errors"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
-	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"golang.org/x/exp/slog"
 )
 
 type usecase struct {
-	orderRepo        domain.OrderRepo
+	orderRepo        OrderRepo
 	productDomainSvc domain.ProductDomainService
-	baristaEventPub  event.BaristaEventPublisher
-	kitchenEventPub  event.KitchenEventPublisher
+	baristaEventPub  BaristaEventPublisher
+	kitchenEventPub  KitchenEventPublisher
 }
 
 var _ UseCase = (*usecase)(nil)
@@ -24,10 +23,10 @@ var _ UseCase = (*usecase)(nil)
 var UseCaseSet = wire.NewSet(NewUseCase)
 
 func NewUseCase(
-	orderRepo domain.OrderRepo,
+	orderRepo OrderRepo,
 	productDomainSvc domain.ProductDomainService,
-	baristaEventPub event.BaristaEventPublisher,
-	kitchenEventPub event.KitchenEventPublisher,
+	baristaEventPub BaristaEventPublisher,
+	kitchenEventPub KitchenEventPublisher,
 ) UseCase {
 	return &usecase{
 		orderRepo:        orderRepo,
@@ -40,7 +39,7 @@ func NewUseCase(
 func (uc *usecase) GetListOrderFulfillment(ctx context.Context) ([]*domain.Order, error) {
 	entities, err := uc.orderRepo.GetAll(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("counterGRPCServer-GetListOrderFulfillment-g.orderRepo.GetAll: %w", err)
+		return nil, fmt.Errorf("orderRepo.GetAll: %w", err)
 	}
 
 	return entities, nil
@@ -49,12 +48,12 @@ func (uc *usecase) GetListOrderFulfillment(ctx context.Context) ([]*domain.Order
 func (uc *usecase) PlaceOrder(ctx context.Context, model *domain.PlaceOrderModel) error {
 	order, err := domain.CreateOrderFrom(ctx, model, uc.productDomainSvc)
 	if err != nil {
-		return errors.Wrap(err, "usecase-domain.CreateOrderFrom")
+		return errors.Wrap(err, "domain.CreateOrderFrom")
 	}
 
 	err = uc.orderRepo.Create(ctx, order)
 	if err != nil {
-		return errors.Wrap(err, "usecase-uc.orderRepo.Create")
+		return errors.Wrap(err, "orderRepo.Create")
 	}
 
 	slog.Debug("order created", "order", *order)

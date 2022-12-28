@@ -9,7 +9,7 @@ import (
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	"github.com/thangchung/go-coffeeshop/internal/counter/events"
 	ordersUC "github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
-	sharedevents "github.com/thangchung/go-coffeeshop/internal/pkg/event"
+	shared "github.com/thangchung/go-coffeeshop/internal/pkg/event"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 	pkgConsumer "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/consumer"
 	pkgPublisher "github.com/thangchung/go-coffeeshop/pkg/rabbitmq/publisher"
@@ -24,8 +24,8 @@ type App struct {
 	Publisher pkgPublisher.EventPublisher
 	Consumer  pkgConsumer.EventConsumer
 
-	BaristaOrderPub sharedevents.BaristaEventPublisher
-	KitchenOrderPub sharedevents.KitchenEventPublisher
+	BaristaOrderPub ordersUC.BaristaEventPublisher
+	KitchenOrderPub ordersUC.KitchenEventPublisher
 
 	ProductDomainSvc  domain.ProductDomainService
 	UC                ordersUC.UseCase
@@ -42,8 +42,8 @@ func New(
 	publisher pkgPublisher.EventPublisher,
 	consumer pkgConsumer.EventConsumer,
 
-	baristaOrderPub sharedevents.BaristaEventPublisher,
-	kitchenOrderPub sharedevents.KitchenEventPublisher,
+	baristaOrderPub ordersUC.BaristaEventPublisher,
+	kitchenOrderPub ordersUC.KitchenEventPublisher,
 	productDomainSvc domain.ProductDomainService,
 	uc ordersUC.UseCase,
 	counterGRPCServer gen.CounterServiceServer,
@@ -78,7 +78,7 @@ func (a *App) Worker(ctx context.Context, messages <-chan amqp.Delivery) {
 
 		switch delivery.Type {
 		case "barista-order-updated":
-			var payload sharedevents.BaristaOrderUpdated
+			var payload shared.BaristaOrderUpdated
 
 			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {
@@ -100,7 +100,7 @@ func (a *App) Worker(ctx context.Context, messages <-chan amqp.Delivery) {
 				}
 			}
 		case "kitchen-order-updated":
-			var payload sharedevents.KitchenOrderUpdated
+			var payload shared.KitchenOrderUpdated
 
 			err := json.Unmarshal(delivery.Body, &payload)
 			if err != nil {

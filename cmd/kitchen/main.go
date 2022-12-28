@@ -46,21 +46,17 @@ func main() {
 	// integrate Logrus with the slog logger
 	slog.New(logger.NewLogrusHandler(logrus.StandardLogger()))
 
-	a, err := app.InitApp(cfg, postgres.DBConnString(cfg.PG.DsnURL), rabbitmq.RabbitMQConnStr(cfg.RabbitMQ.URL))
+	a, cleanup, err := app.InitApp(cfg, postgres.DBConnString(cfg.PG.DsnURL), rabbitmq.RabbitMQConnStr(cfg.RabbitMQ.URL))
 	if err != nil {
 		slog.Error("failed init app", err)
 		cancel()
 	}
-
-	defer a.AMQPConn.Close()
-	defer a.PG.Close()
 
 	a.CounterOrderPub.Configure(
 		pkgPublisher.ExchangeName("counter-order-exchange"),
 		pkgPublisher.BindingKey("counter-order-routing-key"),
 		pkgPublisher.MessageTypeName("kitchen-order-updated"),
 	)
-	defer a.CounterOrderPub.CloseChan()
 
 	a.Consumer.Configure(
 		pkgConsumer.ExchangeName("kitchen-order-exchange"),
@@ -84,8 +80,10 @@ func main() {
 
 	select {
 	case v := <-quit:
+		cleanup()
 		slog.Info("signal.Notify", v)
 	case done := <-ctx.Done():
+		cleanup()
 		slog.Info("ctx.Done", done)
 	}
 }

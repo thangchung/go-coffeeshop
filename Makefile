@@ -64,7 +64,7 @@ docker-compose-build:
 wire:
 	cd internal/barista/app && wire && cd - && \
 	cd internal/counter/app && wire && cd - && \
-	cd internal/barista/app && wire && cd - && \
+	cd internal/kitchen/app && wire && cd - && \
 	cd internal/product/app && wire && cd -
 .PHONY: wire
 

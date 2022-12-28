@@ -1,8 +1,8 @@
 # go-coffeeshop
 
-A event-driven microservices coffee shop application has been written in Golang, and deployment using Nomad, Consul Connect, Vault, and Terraform.
+An event-driven microservices coffee shop application has been written in Golang and deployed using Nomad, Consul Connect, Vault, and Terraform.
 
-Other versions can be found at:
+Other versions in .NET/C# can be found at:
 
 - [.NET CoffeeShop with Microservices approach](https://github.com/thangchung/coffeeshop-on-nomad)
 - [.NET CoffeeShop with Modular Monolith approach](https://github.com/thangchung/coffeeshop-modular)
@@ -23,6 +23,7 @@ Other versions can be found at:
       - [sirupsen/logrus](https://github.com/sirupsen/logrus)
     - [samber/lo](https://github.com/samber/lo)
     - [automaxprocs/maxprocs](go.uber.org/automaxprocs/maxprocs)
+    - [stretchr/testify](github.com/stretchr/testify)
     - golang/glog
     - google/uuid
     - google.golang.org/genproto
@@ -45,16 +46,16 @@ No. | Service | URI
 1 | grpc-gateway | [http://localhost:5000](http://localhost:5000)
 2 | product service | [http://localhost:5001](http://localhost:5001)
 3 | counter service | [http://localhost:5002](http://localhost:5002)
-4 | barista service |  
-5 | kitchen service |  
+4 | barista service | worker only
+5 | kitchen service | worker only
 6 | web | [http://localhost:8888](http://localhost:8888)
 
 ## Starting project
 
-Jump into `.devcontainer`, then
+Jump into [`.devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers), then
 
 ```bash
-> make compose
+> make docker-compose
 ```
 
 From `vscode` => Press F1 => Type `Simple Browser View` => Choose it and enter [http://localhost:8888](http://localhost:8888).
@@ -81,6 +82,10 @@ Enjoy!!!
 The details of how to run it can be find at [deployment with Nomad, Consult Connect and Vault](build/README.md).
 
 ## Development
+
+### Clean Domain-driven Design
+
+![clean_ddd](docs/clean_ddd.svg)
 
 ### Generate dependency injection instances with wire
 

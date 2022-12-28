@@ -5,20 +5,20 @@ import (
 
 	"github.com/google/wire"
 	"github.com/pkg/errors"
-	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	"github.com/thangchung/go-coffeeshop/internal/counter/events"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
 	"github.com/thangchung/go-coffeeshop/internal/pkg/event"
 )
 
 type baristaOrderUpdatedEventHandler struct {
-	orderRepo domain.OrderRepo
+	orderRepo orders.OrderRepo
 }
 
 var _ events.BaristaOrderUpdatedEventHandler = (*baristaOrderUpdatedEventHandler)(nil)
 
 var BaristaOrderUpdatedEventHandlerSet = wire.NewSet(NewBaristaOrderUpdatedEventHandler)
 
-func NewBaristaOrderUpdatedEventHandler(orderRepo domain.OrderRepo) events.BaristaOrderUpdatedEventHandler {
+func NewBaristaOrderUpdatedEventHandler(orderRepo orders.OrderRepo) events.BaristaOrderUpdatedEventHandler {
 	return &baristaOrderUpdatedEventHandler{
 		orderRepo: orderRepo,
 	}

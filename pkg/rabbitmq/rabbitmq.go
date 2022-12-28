@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/wire"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/exp/slog"
 )
@@ -17,8 +16,6 @@ const (
 type RabbitMQConnStr string
 
 var ErrCannotConnectRabbitMQ = errors.New("cannot connect to rabbit")
-
-var RabbitMQSet = wire.NewSet(NewRabbitMQConn)
 
 func NewRabbitMQConn(rabbitMqURL RabbitMQConnStr) (*amqp.Connection, error) {
 	var (

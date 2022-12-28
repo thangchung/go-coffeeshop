@@ -13,6 +13,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/thangchung/go-coffeeshop/internal/counter/domain"
 	"github.com/thangchung/go-coffeeshop/internal/counter/infras/postgresql"
+	"github.com/thangchung/go-coffeeshop/internal/counter/usecases/orders"
 	shared "github.com/thangchung/go-coffeeshop/internal/pkg/shared_kernel"
 	"github.com/thangchung/go-coffeeshop/pkg/postgres"
 )
@@ -23,11 +24,11 @@ type orderRepo struct {
 	pg postgres.DBEngine
 }
 
-var _ domain.OrderRepo = (*orderRepo)(nil)
+var _ orders.OrderRepo = (*orderRepo)(nil)
 
 var RepositorySet = wire.NewSet(NewOrderRepo)
 
-func NewOrderRepo(pg postgres.DBEngine) domain.OrderRepo {
+func NewOrderRepo(pg postgres.DBEngine) orders.OrderRepo {
 	return &orderRepo{pg: pg}
 }
 

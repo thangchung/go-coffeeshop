@@ -55,7 +55,7 @@ func main() {
 		<-ctx.Done()
 	}()
 
-	prepareApp(ctx, cancel, cfg, server)
+	cleanup := prepareApp(ctx, cancel, cfg, server)
 
 	// gRPC Server.
 	address := fmt.Sprintf("%s:%d", cfg.HTTP.Host, cfg.HTTP.Port)
@@ -89,36 +89,33 @@ func main() {
 
 	select {
 	case v := <-quit:
+		cleanup()
 		slog.Info("signal.Notify", v)
 	case done := <-ctx.Done():
-		slog.Info("ctx.Done", done)
+		cleanup()
+		slog.Info("ctx.Done", "app done", done)
 	}
 }
 
-func prepareApp(ctx context.Context, cancel context.CancelFunc, cfg *config.Config, server *grpc.Server) {
-	a, err := app.InitApp(cfg, postgres.DBConnString(cfg.PG.DsnURL), rabbitmq.RabbitMQConnStr(cfg.RabbitMQ.URL), server)
+func prepareApp(ctx context.Context, cancel context.CancelFunc, cfg *config.Config, server *grpc.Server) func() {
+	a, cleanup, err := app.InitApp(cfg, postgres.DBConnString(cfg.PG.DsnURL), rabbitmq.RabbitMQConnStr(cfg.RabbitMQ.URL), server)
 	if err != nil {
 		slog.Error("failed init app", err)
 		cancel()
 		<-ctx.Done()
 	}
 
-	// defer a.AMQPConn.Close()
-	// defer a.PG.Close()
-
 	a.BaristaOrderPub.Configure(
 		pkgPublisher.ExchangeName("barista-order-exchange"),
 		pkgPublisher.BindingKey("barista-order-routing-key"),
 		pkgPublisher.MessageTypeName("barista-order-created"),
 	)
-	// defer a.BaristaOrderPub.CloseChan()
 
 	a.KitchenOrderPub.Configure(
 		pkgPublisher.ExchangeName("kitchen-order-exchange"),
 		pkgPublisher.BindingKey("kitchen-order-routing-key"),
 		pkgPublisher.MessageTypeName("kitchen-order-created"),
 	)
-	// defer a.KitchenOrderPub.CloseChan()
 
 	a.Consumer.Configure(
 		pkgConsumer.ExchangeName("counter-order-exchange"),
@@ -135,4 +132,6 @@ func prepareApp(ctx context.Context, cancel context.CancelFunc, cfg *config.Conf
 			<-ctx.Done()
 		}
 	}()
+
+	return cleanup
 }

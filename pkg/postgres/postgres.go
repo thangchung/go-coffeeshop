@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/wire"
 	"golang.org/x/exp/slog"
 )
 
@@ -24,8 +23,6 @@ type postgres struct {
 }
 
 var _ DBEngine = (*postgres)(nil)
-
-var DBEngineSet = wire.NewSet(NewPostgresDB)
 
 func NewPostgresDB(url DBConnString) (DBEngine, error) {
 	slog.Info("CONN", "connect string", url)
