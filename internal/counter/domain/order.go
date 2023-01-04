@@ -123,6 +123,7 @@ func (o *Order) Apply(event *events.OrderUp) error {
 	}
 
 	o.LineItems[index].ItemStatus = shared.StatusFulfilled
+	o.LineItems = []*LineItem{o.LineItems[index]}
 
 	if checkFulfilledStatus(o.LineItems) {
 		o.OrderStatus = shared.StatusFulfilled
