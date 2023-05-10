@@ -91,6 +91,7 @@
         "orders": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/counterapiOrderDto"
           }
         }
@@ -146,6 +147,7 @@
         "lineItems": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/counterapiLineItemDto"
           }
         }
@@ -172,12 +174,14 @@
         "baristaItems": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/counterapiCommandItem"
           }
         },
         "kitchenItems": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/counterapiCommandItem"
           }
         },
@@ -203,6 +207,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

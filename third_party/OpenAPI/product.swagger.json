@@ -87,6 +87,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }
@@ -98,6 +99,7 @@
         "itemTypes": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/productapiItemTypeDto"
           }
         }
@@ -109,6 +111,7 @@
         "items": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/productapiItemDto"
           }
         }
